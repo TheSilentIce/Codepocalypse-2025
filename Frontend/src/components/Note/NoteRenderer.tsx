@@ -1,14 +1,31 @@
-import { motion } from "motion/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Note } from "../utilities";
+import FallingNote from "./FallingNote";
 
 interface RendererProps {
   notes: Note[];
   border: number;
 }
 
-function NoteRenderer({ notes, border }: RendererProps) {
+export default function NoteRenderer({ notes, border }: RendererProps) {
   const [activeNotes, setActiveNotes] = useState<Note[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState(0);
+
+  // Measure container height dynamically
+  useEffect(() => {
+    if (containerRef.current) {
+      setContainerHeight(containerRef.current.clientHeight);
+    }
+
+    const handleResize = () => {
+      if (containerRef.current) {
+        setContainerHeight(containerRef.current.clientHeight);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     if (!notes.length) return;
@@ -36,36 +53,19 @@ function NoteRenderer({ notes, border }: RendererProps) {
   };
 
   return (
-    <div className="w-full relative h-[400px] overflow-hidden bg-black">
+    <div
+      ref={containerRef}
+      className="w-full relative h-[400px] overflow-hidden bg-black"
+    >
       {activeNotes.map((note) => (
-        <div
+        <FallingNote
           key={note.id}
-          className="absolute overflow-hidden"
-          style={{
-            left: note.x ?? 0,
-            width: note.width ?? 20,
-            height: border,
-          }}
-        >
-          <motion.div
-            style={{
-              position: "absolute",
-              top: -note.duration * 100,
-              width: "100%",
-              height: note.duration * 100,
-              backgroundColor: note.color ?? "aqua",
-            }}
-            animate={{ top: border }}
-            transition={{
-              duration: note.duration * 2,
-              ease: "linear",
-            }}
-            onAnimationComplete={() => removeNote(note.id)}
-          />
-        </div>
+          note={note}
+          border={border}
+          containerHeight={containerHeight}
+          onFinish={removeNote}
+        />
       ))}
     </div>
   );
 }
-
-export default NoteRenderer;

@@ -7,38 +7,36 @@ import "./App.css";
 import Keyboard from "./components/keyboard/Keyboard";
 import NoteRenderer from "./components/Note/NoteRenderer";
 function App() {
-  const notes: Note[] = [
-    {
-      id: "1",
-      midi: 60,
-      startTime: 0,
-      duration: 1,
-    },
-    {
-      id: "4",
-      midi: 60,
-      startTime: 0.5,
-      duration: 1,
-    },
-    {
-      id: "n2",
-      midi: 64, // E4
-      startTime: 0.5,
-      duration: 1.5,
-      color: "green",
-      x: 100,
-      width: 20,
-    },
-    {
-      id: "n3",
-      midi: 67, // G4
-      startTime: 1,
-      duration: 2,
-      color: "blue",
-      x: 150,
-      width: 20,
-    },
-  ];
+  const notes: Note[] = [];
+  const keys = [60, 62, 64, 65, 67, 69, 71]; // some MIDI notes
+  let currentTime = 0;
+
+  const lastEndTimes: Record<number, number> = {}; // track last end per key
+
+  for (let i = 0; i < 50; i++) {
+    const midi = keys[Math.floor(Math.random() * keys.length)];
+    const duration = 0.8 + Math.random() * 1.2; // 0.8–2 sec
+    const lastEnd = lastEndTimes[midi] ?? 0;
+    const startTime = Math.max(currentTime, lastEnd); // ensure no overlap on same key
+    const color = ["aqua", "lime", "green", "orange", "blue", "pink", "yellow"][
+      i % 7
+    ];
+    const x = 50 + (midi - 60) * 30;
+    const width = 15 + Math.floor(Math.random() * 10);
+
+    notes.push({
+      id: `n${i + 1}`,
+      midi,
+      startTime,
+      duration,
+      color,
+      x,
+      width,
+    });
+
+    lastEndTimes[midi] = startTime + duration; // update last end for this key
+    currentTime = startTime + Math.random() * 0.5; // small spacing before next note
+  }
 
   return (
     <div className="h-screen w-screen bg-black">

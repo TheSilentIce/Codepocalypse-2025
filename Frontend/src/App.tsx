@@ -15,6 +15,12 @@ function App() {
       duration: 1,
     },
     {
+      id: "4",
+      midi: 60,
+      startTime: 0.5,
+      duration: 1,
+    },
+    {
       id: "n2",
       midi: 64, // E4
       startTime: 0.5,
@@ -35,7 +41,7 @@ function App() {
   ];
 
   return (
-    <div>
+    <div className="h-screen w-screen bg-black">
       <NoteRenderer notes={notes} border={400} />
     </div>
   );

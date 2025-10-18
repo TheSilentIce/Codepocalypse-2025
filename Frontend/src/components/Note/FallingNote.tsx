@@ -1,6 +1,7 @@
 import { motion, useMotionValue, useMotionValueEvent } from "motion/react";
-import type { Note } from "../utilities";
 import { useState } from "react";
+import NoteHitEffect from "./NoteHitEffect";
+import type { Note } from "../utilities";
 
 interface FallingNoteProps {
   note: Note;
@@ -22,16 +23,16 @@ export default function FallingNote({
   const duration = note.duration ?? 1;
   const color = note.color ?? "aqua";
   const noteHeight = 20 + duration * 10;
-  const extraHeight = 50; // extra height for longer visuals
+  const extraHeight = 50;
   const motionHeight = noteHeight + extraHeight;
 
   const y = useMotionValue(-motionHeight);
   const [showGif, setShowGif] = useState(false);
 
-  // Keep GIF visible as long as **bottom of motion div touches the border**
+  // Show GIF only when bottom of note hits/passes the border
   useMotionValueEvent(y, "change", (latest) => {
     const bottom = latest + motionHeight;
-    setShowGif(bottom >= border);
+    if (bottom >= border) setShowGif(true);
   });
 
   return (
@@ -43,7 +44,7 @@ export default function FallingNote({
           left: x,
           width,
           height: containerHeight,
-          overflow: "visible",
+          overflow: "visible", // allow GIF to show
         }}
       >
         <motion.div
@@ -53,30 +54,22 @@ export default function FallingNote({
             width: "100%",
             height: motionHeight,
             backgroundColor: color,
+            borderRadius: 4,
           }}
           animate={{ top: containerHeight }}
-          transition={{ duration: duration * 2, ease: "linear" }}
+          transition={{ duration: duration * 5, ease: "linear" }}
           onAnimationComplete={() => onFinish?.(note.id)}
         />
       </div>
 
-      {/* GIF at border */}
+      {/* NoteHitEffect appears above the bar */}
       {showGif && (
-        <motion.img
-          src={gifUrl}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          style={{
-            position: "absolute",
-            left: x - width / 2,
-            top: border - 50, // adjust to lift GIF above border
-            width: width * 2,
-            height: width * 2,
-            pointerEvents: "none",
-            zIndex: 50,
-          }}
-          alt="note-hit-gif"
+        <NoteHitEffect
+          x={x + width / 2}
+          y={border}
+          width={width}
+          height={motionHeight}
+          gifUrl={gifUrl}
         />
       )}
     </>

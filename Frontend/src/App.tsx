@@ -13,7 +13,7 @@ function App() {
 
   const lastEndTimes: Record<number, number> = {}; // track last end per key
 
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 20; i++) {
     const midi = keys[Math.floor(Math.random() * keys.length)];
     const duration = 0.8 + Math.random() * 1.2; // 0.8–2 sec
     const lastEnd = lastEndTimes[midi] ?? 0;

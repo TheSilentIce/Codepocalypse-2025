@@ -63,6 +63,7 @@ export default function NoteRenderer({ notes, border }: RendererProps) {
           note={note}
           border={border}
           containerHeight={containerHeight}
+          gifUrl="../../../public/star-unscreen.gif"
           onFinish={removeNote}
         />
       ))}

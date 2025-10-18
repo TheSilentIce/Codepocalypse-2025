@@ -1,36 +1,44 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
-import Keyboard from './components/keyboard/Keyboard'
+import { useState } from "react";
+import reactLogo from "./assets/react.svg";
+import viteLogo from "/vite.svg";
+import type { Note } from "./components/utilities";
+import "./App.css";
+
+import Keyboard from "./components/keyboard/Keyboard";
+import NoteRenderer from "./components/Note/NoteRenderer";
 function App() {
-  const [count, setCount] = useState(0)
+  const notes: Note[] = [
+    {
+      id: "1",
+      midi: 60,
+      startTime: 0,
+      duration: 1,
+    },
+    {
+      id: "n2",
+      midi: 64, // E4
+      startTime: 0.5,
+      duration: 1.5,
+      color: "green",
+      x: 100,
+      width: 20,
+    },
+    {
+      id: "n3",
+      midi: 67, // G4
+      startTime: 1,
+      duration: 2,
+      color: "blue",
+      x: 150,
+      width: 20,
+    },
+  ];
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-      <Keyboard></Keyboard>
-    </>
-  )
+    <div>
+      <NoteRenderer notes={notes} border={400} />
+    </div>
+  );
 }
 
-export default App
+export default App;

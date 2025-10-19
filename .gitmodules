@@ -1,0 +1,4 @@
+[submodule "Backend/PiCoGen"]
+	path = Backend/PiCoGen
+	url = https://github.com/tanchihpin0517/PiCoGen.git
+	branch = v2

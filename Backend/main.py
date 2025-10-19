@@ -3,9 +3,10 @@ from midi_parser import midi_to_json
 from werkzeug.utils import secure_filename
 import os
 from datetime import datetime
-
+from flask_cors import CORS, cross_origin
 app = Flask(__name__)
-
+cors = CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
 # Configuration
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 app.config['UPLOAD_FOLDER'] = 'user_audio_files'
@@ -99,6 +100,7 @@ def get_midi(filename='one dir.mid'):
 
 
 @app.route('/api/upload', methods=['POST'])
+@cross_origin
 def upload_file():
     """
     Upload an audio file to the user_audio_files directory.

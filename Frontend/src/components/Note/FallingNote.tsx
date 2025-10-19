@@ -1,15 +1,14 @@
 import { motion, useMotionValue, useMotionValueEvent } from "motion/react";
-import { useEffect, useState, useRef } from "react";
+import { useRef } from "react";
 import ParticleBurst from "./ParticleBurst";
-import { type Note } from "../utilities";
+import type { Note } from "../utilities";
 
 interface FallingNoteProps {
   note: Note;
   border: number;
   containerHeight: number;
   onFinish?: (id: string | number) => void;
-  triggerAttack?: (midi: number, velocity: number) => void;
-  triggerRelease?: (midi: number) => void;
+  triggerAttack?: (midi: number, velocity?: number) => void;
 }
 
 export default function FallingNote({
@@ -18,7 +17,6 @@ export default function FallingNote({
   containerHeight,
   onFinish,
   triggerAttack,
-  triggerRelease,
 }: FallingNoteProps) {
   const x = note.x ?? 0;
   const width = note.width ?? 20;
@@ -33,26 +31,12 @@ export default function FallingNote({
   const y = useMotionValue(-motionHeight);
   const hasPlayedRef = useRef(false);
 
-  // Use motionValueEvent to check **every frame**
+  // Trigger note when it hits the border
   useMotionValueEvent(y, "change", (latest) => {
     if (!hasPlayedRef.current && latest + noteHeight >= border) {
-      // Trigger the note **exactly when it hits the floor**
       if (triggerAttack) {
-        // Use triggerAttackRelease for exact duration
-        if ("triggerAttackRelease" in triggerAttack) {
-          (triggerAttack as any).triggerAttackRelease?.(
-            midi,
-            duration,
-            velocity,
-          );
-        } else {
-          triggerAttack(midi, velocity);
-          if (triggerRelease) {
-            setTimeout(() => triggerRelease(midi), duration * 1000);
-          }
-        }
+        triggerAttack(midi, velocity);
       }
-
       hasPlayedRef.current = true;
     }
   });

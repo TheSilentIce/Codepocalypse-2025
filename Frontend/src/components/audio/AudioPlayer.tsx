@@ -1,61 +1,43 @@
-import * as Tone from "tone";
 import { useRef, useState, useCallback, useEffect } from "react";
+import Soundfont from "soundfont-player";
 
 export const useAudioPlayer = () => {
-  const synthRef = useRef<Tone.PolySynth | null>(null);
+  const playerRef = useRef<any>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Create synth on mount
-  useEffect(() => {
-    if (!synthRef.current) {
-      synthRef.current = new Tone.PolySynth(Tone.Synth).toDestination();
-
-      synthRef.current.maxPolyphony = 64;
-      synthRef.current.volume.value = -12;
-      synthRef.current.set({
-        envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 0.8 },
-        oscillator: { type: "triangle" },
-      });
-    }
-
-    return () => {
-      synthRef.current?.dispose();
-      synthRef.current = null;
-    };
-  }, []);
-
-  // Initialize audio context (must be called on user interaction)
+  // Initialize AudioContext and piano player
   const initAudio = useCallback(async () => {
     if (!isInitialized) {
-      await Tone.start();
+      const ac = new (window.AudioContext ||
+        (window as any).webkitAudioContext)();
+      audioContextRef.current = ac;
+      playerRef.current = await Soundfont.instrument(
+        ac,
+        "acoustic_grand_piano",
+      );
       setIsInitialized(true);
-      // console.log("Audio initialized!");
     }
   }, [isInitialized]);
 
-  // Trigger attack (note on)
-  const triggerAttack = useCallback(
-    (midi: number, velocity: number = 0.7) => {
-      if (!synthRef.current || !isInitialized) return;
-      const freq = Tone.Frequency(midi, "midi").toFrequency();
-      synthRef.current.triggerAttack(freq, Tone.now(), velocity);
-    },
-    [isInitialized],
-  );
+  const triggerAttack = useCallback((midi: number, velocity: number = 0.7) => {
+    if (!playerRef.current || !audioContextRef.current) return;
+    const duration = 2; // fallback duration in seconds
+    playerRef.current.play(midi, audioContextRef.current.currentTime, {
+      gain: velocity,
+      duration,
+    });
+  }, []);
 
-  // Trigger release (note off)
-  const triggerRelease = useCallback(
-    (midi: number) => {
-      if (!synthRef.current || !isInitialized) return;
-      const freq = Tone.Frequency(midi, "midi").toFrequency();
-      synthRef.current.triggerRelease(freq, Tone.now());
-    },
-    [isInitialized],
-  );
+  const triggerRelease = useCallback((_midi: number) => {
+    // Soundfont-player auto releases notes after duration
+  }, []);
 
-  // Stop all notes
   const stopAllNotes = useCallback(() => {
-    synthRef.current?.releaseAll();
+    audioContextRef.current?.close();
+    audioContextRef.current = null;
+    playerRef.current = null;
+    setIsInitialized(false);
   }, []);
 
   return {

@@ -1,10 +1,12 @@
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from midi_parser import midi_to_json
 from werkzeug.utils import secure_filename
 import os
 from datetime import datetime
 
 app = Flask(__name__)
+CORS(app)
 
 # Configuration
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size

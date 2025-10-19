@@ -13,6 +13,28 @@ export interface Note {
   width?: number;
 }
 
+// Backend MIDI data structure
+export interface BackendMidiNote {
+  note: number;
+  time: number;
+  duration: number;
+  velocity: number;
+}
+
+export interface BackendMidiTrack {
+  track_name: string;
+  notes: BackendMidiNote[];
+}
+
+export interface BackendMidiData {
+  filename: string;
+  tempo: number;
+  time_signature: string;
+  duration: number;
+  ticks_per_beat: number;
+  tracks: BackendMidiTrack[];
+}
+
 export const handleFileUpload = (
   event: React.ChangeEvent<HTMLInputElement>,
 ) => {
@@ -206,3 +228,86 @@ export function generateChordNotes(
 // const mockNotes = generateMockNotes(20, 800);
 // const melodyNotes = generateMelodyNotes(15, 800);
 // const chordNotes = generateChordNotes(8, 800);
+
+// Backend API URL
+const API_BASE_URL = "http://localhost:5000";
+
+/**
+ * Fetches the list of available MIDI files from the backend
+ * @returns Promise<string[]> - Array of MIDI filenames (without extensions)
+ */
+export async function fetchMidiList(): Promise<string[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/midis`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching MIDI list:", error);
+    throw error;
+  }
+}
+
+/**
+ * Fetches MIDI data from the backend for a specific file
+ * @param filename - Name of the MIDI file (without extension)
+ * @returns Promise<BackendMidiData> - Parsed MIDI data from backend
+ */
+export async function fetchMidiData(filename: string): Promise<BackendMidiData> {
+  try {
+    // Try with .mid extension first, then .midi
+    let response = await fetch(`${API_BASE_URL}/api/midi/${filename}.mid`);
+    if (!response.ok) {
+      response = await fetch(`${API_BASE_URL}/api/midi/${filename}.midi`);
+    }
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`Error fetching MIDI data for ${filename}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Converts backend MIDI data format to frontend Note[] format
+ * @param backendData - MIDI data from backend API
+ * @param containerWidth - Width of the piano/container for x positioning
+ * @returns Note[] - Array of notes ready for rendering
+ */
+export function convertBackendMidiToNotes(
+  backendData: BackendMidiData,
+  containerWidth: number = 800,
+): Note[] {
+  const notes: Note[] = [];
+  const keyWidth = containerWidth / 88; // Standard 88-key piano
+  const pianoStartMidi = 21; // A0
+
+  backendData.tracks.forEach((track, trackIndex) => {
+    track.notes.forEach((note, noteIndex) => {
+      const midi = note.note;
+      const keyIndex = midi - pianoStartMidi;
+      const x = keyIndex * keyWidth;
+      const color = NEON_COLORS[trackIndex % NEON_COLORS.length];
+
+      notes.push({
+        id: `${trackIndex}-${noteIndex}`,
+        midi: midi,
+        startTime: note.time,
+        duration: note.duration,
+        velocity: note.velocity / 127, // Convert from 0-127 to 0-1
+        track: trackIndex,
+        isActive: false,
+        x: x,
+        width: keyWidth,
+        color: color,
+      });
+    });
+  });
+
+  return notes;
+}

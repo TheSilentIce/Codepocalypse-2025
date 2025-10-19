@@ -19,17 +19,17 @@ export default function NoteRenderer({ notes, border }: RendererProps) {
     useAudioPlayer();
 
   // Debug logging
-  console.log("=== NoteRenderer Debug ===");
-  console.log("Notes passed to renderer:", notes.length);
-  console.log("Active notes:", activeNotes.length);
-  console.log("Border position:", border);
-  console.log("Container height:", containerHeight);
-  console.log("Audio initialized:", isInitialized);
-  console.log(
-    "Border is at:",
-    ((border / containerHeight) * 100).toFixed(0) + "% from top",
-  );
-  console.log("Sample note:", notes[0]);
+  // console.log("=== NoteRenderer Debug ===");
+  // console.log("Notes passed to renderer:", notes.length);
+  // console.log("Active notes:", activeNotes.length);
+  // console.log("Border position:", border);
+  // console.log("Container height:", containerHeight);
+  // console.log("Audio initialized:", isInitialized);
+  // console.log(
+  //   "Border is at:",
+  //   ((border / containerHeight) * 100).toFixed(0) + "% from top",
+  // );
+  // console.log("Sample note:", notes[0]);
 
   // Measure container height dynamically
   useEffect(() => {
@@ -65,7 +65,7 @@ export default function NoteRenderer({ notes, border }: RendererProps) {
     const timers: number[] = [];
     grouped.forEach((group, startTime) => {
       const timer = window.setTimeout(() => {
-        console.log("Spawning notes at time:", startTime, group);
+        // console.log("Spawning notes at time:", startTime, group);
         setActiveNotes((prev) => [...prev, ...group]);
       }, startTime * 1000);
       timers.push(timer);
@@ -74,19 +74,19 @@ export default function NoteRenderer({ notes, border }: RendererProps) {
   }, [notes]);
 
   const removeNote = (id: string | number) => {
-    console.log("Removing note:", id);
+    // console.log("Removing note:", id);
     setActiveNotes((prev) => prev.filter((n) => n.id !== id));
   };
 
   // Manual audio init button
   const handleInitAudio = async () => {
-    console.log("Manual audio init clicked");
+    // console.log("Manual audio init clicked");
     await initAudio();
   };
 
   // Test button to verify audio works
   const testSound = () => {
-    console.log("Test sound button clicked");
+    // console.log("Test sound button clicked");
     playNote(60, 0.5, 0.8);
   };
 

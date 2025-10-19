@@ -29,7 +29,7 @@ export const useAudioPlayer = () => {
     if (!isInitialized) {
       await Tone.start();
       setIsInitialized(true);
-      console.log("Audio initialized!");
+      // console.log("Audio initialized!");
     }
   }, [isInitialized]);
 

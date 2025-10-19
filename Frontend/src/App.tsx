@@ -12,9 +12,9 @@ import "./App.css";
 import Keyboard from "./components/keyboard/Keyboard";
 import NoteRenderer from "./components/Note/NoteRenderer";
 function App() {
-  // const notes: Note[] = generateChordNotes(50, 1000);
+  const notes: Note[] = generateChordNotes(30, 1000);
   // const notes: Note[] = generateMockNotes(50, 1000);
-  const notes: Note[] = generateMelodyNotes(10, 1000);
+  // const notes: Note[] = generateMelodyNotes(30, 1000);
 
   return (
     <div className="h-screen w-screen bg-black">

@@ -1,13 +1,12 @@
 import { motion, useMotionValue, useMotionValueEvent } from "motion/react";
-import { useEffect, useRef } from "react";
-import ParticleBurst from "./ParticleBurst";
+import { useRef } from "react";
 import type { Note } from "../utilities";
 
 interface FallingNoteProps {
   note: Note;
   border: number;
   containerHeight: number;
-  onFinish?: (id: string) => void;
+  onFinish?: (id: string | number) => void;
 }
 
 export default function FallingNote({
@@ -18,16 +17,17 @@ export default function FallingNote({
 }: FallingNoteProps) {
   const x = note.x ?? 0;
   const width = note.width ?? 20;
-  const duration = note.duration ?? 1;
   const color = note.color ?? "aqua";
 
-  const noteHeight = 20 + duration * 10;
+  const LEAD_TIME = note.duration ?? 2; // seconds for note to fall
   const extraHeight = 50;
+  const noteHeight = 20 + (note.duration ?? 1) * 10;
   const motionHeight = noteHeight + extraHeight;
+
   const y = useMotionValue(-motionHeight);
   const hasFinishedRef = useRef(false);
 
-  // Check every frame if note reached the bottom
+  // Fire onFinish when note reaches the bottom
   useMotionValueEvent(y, "change", (latest) => {
     if (!hasFinishedRef.current && latest + noteHeight >= border) {
       hasFinishedRef.current = true;
@@ -59,14 +59,7 @@ export default function FallingNote({
           filter: "brightness(1.3) saturate(1.5)",
         }}
         animate={{ top: containerHeight }}
-        transition={{ duration: duration * 5, ease: "linear" }}
-      />
-      <ParticleBurst
-        x={0}
-        yMotion={y}
-        width={width}
-        height={motionHeight}
-        color={color}
+        transition={{ duration: LEAD_TIME, ease: "linear" }}
       />
     </div>
   );

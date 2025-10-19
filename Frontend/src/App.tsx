@@ -81,7 +81,9 @@ export default function App() {
       </div>
 
       {/* --- Falling notes --- */}
-      {notes.length > 0 && <NoteRenderer notes={notes} border={300} />}
+      {notes.length > 0 && (
+        <NoteRenderer notes={notes} border={300} speedFactor={1} />
+      )}
 
       {/* --- Keyboard --- */}
       <Keyboard keyStates={keyStates} />

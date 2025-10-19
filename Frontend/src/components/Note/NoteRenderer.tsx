@@ -6,14 +6,21 @@ import { useAudioPlayer } from "../audio/AudioPlayer";
 interface RendererProps {
   notes: Note[];
   border: number;
+  speedFactor?: number; // <--- optional playback speed factor
 }
 
-export default function NoteRenderer({ notes, border }: RendererProps) {
+export default function NoteRenderer({
+  notes,
+  border,
+  speedFactor = 1,
+}: RendererProps) {
   const [activeNotes, setActiveNotes] = useState<Note[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(0);
 
   const { triggerAttack, initAudio, isInitialized } = useAudioPlayer();
+
+  const LEAD_TIME = 2; // seconds it takes for a note to fall visually
 
   // Initialize audio once
   useEffect(() => {
@@ -31,27 +38,44 @@ export default function NoteRenderer({ notes, border }: RendererProps) {
     return () => window.removeEventListener("resize", updateHeight);
   }, []);
 
-  // Schedule notes for audio and visuals
+  // Schedule notes with staggered visuals for overlapping startTimes
   useEffect(() => {
     if (!notes.length || !isInitialized) return;
 
-    const leadTime = 2; // seconds ahead to spawn visual notes
-    const offsetStep = 0.01; // small offset for simultaneous notes
+    // Group notes by startTime (after applying speedFactor)
+    const grouped = new Map<number, Note[]>();
+    notes.forEach((note) => {
+      const adjustedStartTime = (note.startTime ?? 0) / speedFactor;
+      const adjustedDuration = (note.duration ?? 1) / speedFactor;
+      const n: Note = {
+        ...note,
+        startTime: adjustedStartTime,
+        duration: adjustedDuration,
+      };
 
-    notes.forEach((note, index) => {
-      // Audio scheduling
-      triggerAttack(
-        note.midi,
-        note.velocity ?? 0.7,
-        note.duration ?? 1,
-        note.startTime + index * offsetStep,
-      );
-
-      // Visual scheduling
-      const spawnTime = Math.max((note.startTime - leadTime) * 1000, 0);
-      setTimeout(() => setActiveNotes((prev) => [...prev, note]), spawnTime);
+      if (!grouped.has(adjustedStartTime)) grouped.set(adjustedStartTime, []);
+      grouped.get(adjustedStartTime)!.push(n);
     });
-  }, [notes, isInitialized, triggerAttack]);
+
+    grouped.forEach((group, startTime) => {
+      group.forEach((note, index) => {
+        // Apply small horizontal offset for overlapping notes
+        const xOffset = index * 5;
+        note.x = (note.x ?? 0) + xOffset;
+
+        // Schedule visual spawn LEAD_TIME seconds before audio
+        const spawnTime = Math.max((startTime - LEAD_TIME) * 1000, 0);
+        setTimeout(() => setActiveNotes((prev) => [...prev, note]), spawnTime);
+
+        // Schedule audio playback
+        setTimeout(
+          () =>
+            triggerAttack(note.midi, note.velocity ?? 0.7, note.duration ?? 1),
+          startTime * 1000,
+        );
+      });
+    });
+  }, [notes, isInitialized, speedFactor, triggerAttack]);
 
   const removeNote = (id: string) => {
     setActiveNotes((prev) => prev.filter((n) => n.id !== id));

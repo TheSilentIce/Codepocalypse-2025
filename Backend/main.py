@@ -28,6 +28,41 @@ def home():
         'status': 'running'
     })
 
+@app.route('/api/midis', methods=['GET'])
+def get_available_midis():
+    """
+    Get list of available MIDI files (without extensions).
+
+    Returns:
+        JSON array of MIDI file names without extensions
+    """
+    try:
+        midi_dir = 'midi_files'
+
+        # Check if directory exists
+        if not os.path.exists(midi_dir):
+            return jsonify([]), 200
+
+        # Get all files from the directory
+        files = os.listdir(midi_dir)
+
+        # Filter for .mid and .midi files and remove extensions
+        midi_files = []
+        for file in files:
+            if file.lower().endswith(('.mid', '.midi')):
+                # Remove the extension
+                name_without_ext = os.path.splitext(file)[0]
+                midi_files.append(name_without_ext)
+
+        return jsonify(midi_files), 200
+
+    except Exception as e:
+        return jsonify({
+            'error': 'Error retrieving MIDI files',
+            'message': str(e)
+        }), 500
+
+
 @app.route('/api/midi', methods=['GET'])
 @app.route('/api/midi/<filename>', methods=['GET'])
 def get_midi(filename='one dir.mid'):

@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback } from "react";
 import Soundfont from "soundfont-player";
 
 export const useAudioPlayer = () => {
@@ -6,7 +6,7 @@ export const useAudioPlayer = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Initialize AudioContext and piano player
+  // Initialize AudioContext and piano instrument
   const initAudio = useCallback(async () => {
     if (!isInitialized) {
       const ac = new (window.AudioContext ||
@@ -20,22 +20,29 @@ export const useAudioPlayer = () => {
     }
   }, [isInitialized]);
 
-  const triggerAttack = useCallback((midi: number, velocity: number = 0.7) => {
-    if (!playerRef.current || !audioContextRef.current) return;
-    const duration = 2; // fallback duration in seconds
-    playerRef.current.play(midi, audioContextRef.current.currentTime, {
-      gain: velocity,
-      duration,
-    });
-  }, []);
+  /**
+   * Play a note at a specific time with duration and velocity
+   */
+  const triggerAttack = useCallback(
+    (midi: number, velocity = 0.7, duration = 1, startTime = 0) => {
+      if (!playerRef.current || !audioContextRef.current) return;
 
-  const triggerRelease = useCallback((_midi: number) => {
-    // Soundfont-player auto releases notes after duration
-  }, []);
+      const ac = audioContextRef.current;
+      const currentTime = ac.currentTime;
+
+      playerRef.current.play(midi, currentTime + startTime, {
+        gain: velocity,
+        duration,
+      });
+    },
+    [],
+  );
 
   const stopAllNotes = useCallback(() => {
-    audioContextRef.current?.close();
-    audioContextRef.current = null;
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
     playerRef.current = null;
     setIsInitialized(false);
   }, []);
@@ -43,7 +50,6 @@ export const useAudioPlayer = () => {
   return {
     initAudio,
     triggerAttack,
-    triggerRelease,
     stopAllNotes,
     isInitialized,
   };

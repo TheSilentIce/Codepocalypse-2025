@@ -13,8 +13,7 @@ export default function NoteRenderer({ notes, border }: RendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(0);
 
-  const { triggerAttack, triggerRelease, initAudio, isInitialized } =
-    useAudioPlayer();
+  const { triggerAttack, initAudio, isInitialized } = useAudioPlayer();
 
   // Initialize audio once
   useEffect(() => {
@@ -23,39 +22,36 @@ export default function NoteRenderer({ notes, border }: RendererProps) {
 
   // Measure container height dynamically
   useEffect(() => {
-    if (containerRef.current) {
-      setContainerHeight(containerRef.current.clientHeight);
-    }
-    const handleResize = () => {
-      if (containerRef.current) {
+    const updateHeight = () => {
+      if (containerRef.current)
         setContainerHeight(containerRef.current.clientHeight);
-      }
     };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    return () => window.removeEventListener("resize", updateHeight);
   }, []);
 
-  // Schedule notes based on startTime
+  // Schedule notes for audio and visuals
   useEffect(() => {
-    if (!notes.length) return;
+    if (!notes.length || !isInitialized) return;
 
-    const grouped = new Map<number, Note[]>();
-    notes.forEach((note) => {
-      const t = note.startTime ?? 0;
-      if (!grouped.has(t)) grouped.set(t, []);
-      grouped.get(t)!.push(note);
+    const leadTime = 2; // seconds ahead to spawn visual notes
+    const offsetStep = 0.01; // small offset for simultaneous notes
+
+    notes.forEach((note, index) => {
+      // Audio scheduling
+      triggerAttack(
+        note.midi,
+        note.velocity ?? 0.7,
+        note.duration ?? 1,
+        note.startTime + index * offsetStep,
+      );
+
+      // Visual scheduling
+      const spawnTime = Math.max((note.startTime - leadTime) * 1000, 0);
+      setTimeout(() => setActiveNotes((prev) => [...prev, note]), spawnTime);
     });
-
-    const timers: number[] = [];
-    grouped.forEach((group, startTime) => {
-      const timer = window.setTimeout(() => {
-        setActiveNotes((prev) => [...prev, ...group]);
-      }, startTime * 1000);
-      timers.push(timer);
-    });
-
-    return () => timers.forEach(clearTimeout);
-  }, [notes]);
+  }, [notes, isInitialized, triggerAttack]);
 
   const removeNote = (id: string) => {
     setActiveNotes((prev) => prev.filter((n) => n.id !== id));
@@ -74,8 +70,6 @@ export default function NoteRenderer({ notes, border }: RendererProps) {
             border={border}
             containerHeight={containerHeight}
             onFinish={removeNote}
-            triggerAttack={triggerAttack}
-            triggerRelease={triggerRelease}
           />
         ))}
       </div>

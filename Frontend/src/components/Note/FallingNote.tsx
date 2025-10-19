@@ -1,5 +1,5 @@
 import { motion, useMotionValue, useMotionValueEvent } from "motion/react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import ParticleBurst from "./ParticleBurst";
 import type { Note } from "../utilities";
 
@@ -7,8 +7,7 @@ interface FallingNoteProps {
   note: Note;
   border: number;
   containerHeight: number;
-  onFinish?: (id: string | number) => void;
-  triggerAttack?: (midi: number, velocity?: number) => void;
+  onFinish?: (id: string) => void;
 }
 
 export default function FallingNote({
@@ -16,28 +15,23 @@ export default function FallingNote({
   border,
   containerHeight,
   onFinish,
-  triggerAttack,
 }: FallingNoteProps) {
   const x = note.x ?? 0;
   const width = note.width ?? 20;
   const duration = note.duration ?? 1;
   const color = note.color ?? "aqua";
-  const midi = note.midi ?? 60;
-  const velocity = note.velocity ?? 0.7;
 
   const noteHeight = 20 + duration * 10;
   const extraHeight = 50;
   const motionHeight = noteHeight + extraHeight;
   const y = useMotionValue(-motionHeight);
-  const hasPlayedRef = useRef(false);
+  const hasFinishedRef = useRef(false);
 
-  // Trigger note when it hits the border
+  // Check every frame if note reached the bottom
   useMotionValueEvent(y, "change", (latest) => {
-    if (!hasPlayedRef.current && latest + noteHeight >= border) {
-      if (triggerAttack) {
-        triggerAttack(midi, velocity);
-      }
-      hasPlayedRef.current = true;
+    if (!hasFinishedRef.current && latest + noteHeight >= border) {
+      hasFinishedRef.current = true;
+      onFinish?.(note.id);
     }
   });
 
@@ -66,7 +60,6 @@ export default function FallingNote({
         }}
         animate={{ top: containerHeight }}
         transition={{ duration: duration * 5, ease: "linear" }}
-        onAnimationComplete={() => onFinish?.(note.id)}
       />
       <ParticleBurst
         x={0}

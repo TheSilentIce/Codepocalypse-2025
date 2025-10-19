@@ -16,6 +16,7 @@ interface ParticleBurstProps {
   yMotion: MotionValue<number>;
   width: number;
   height: number; // note height
+  color: string; // <- pass note color
 }
 
 export default function ParticleBurst({
@@ -23,6 +24,7 @@ export default function ParticleBurst({
   yMotion,
   width,
   height,
+  color,
 }: ParticleBurstProps) {
   const [y, setY] = useState(yMotion.get());
   const [particles, setParticles] = useState<Particle[]>([]);
@@ -55,10 +57,7 @@ export default function ParticleBurst({
         prev.map((p) => {
           const newSway = p.sway + 0.1 * p.swayDir;
           const newSwayDir = Math.abs(newSway) > 3 ? -p.swayDir : p.swayDir;
-
-          // ✅ stop particle at top of note
           const newY = Math.min(p.y + p.speed, height);
-
           return { ...p, y: newY, sway: newSway, swayDir: newSwayDir };
         }),
       );
@@ -93,7 +92,7 @@ export default function ParticleBurst({
             bottom: 0,
             width: 4 + Math.random() * 2,
             height: p.height,
-            background: "linear-gradient(to top, orange, yellow, transparent)",
+            background: `linear-gradient(to top, ${color}, transparent)`,
             transform: `translateY(-${p.y}px)`,
             borderRadius: 2,
             opacity: Math.max(0, 1 - p.y / height),

@@ -261,7 +261,6 @@ def get_midi(filename="one dir.mid"):
 
 
 @app.route("/api/upload", methods=["POST"])
-@cross_origin
 def upload_file():
     """
     Upload an audio file to the user_audio_files directory.

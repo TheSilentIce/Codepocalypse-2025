@@ -18,32 +18,17 @@ const createInitialKeyState = (): KeyStateMap =>
   }, {} as KeyStateMap);
 
 // Grid column mapping for each MIDI note (1-indexed for CSS Grid)
-const MIDI_TO_GRID_COLUMN: { [key: number]: number } = {
-  38: 1,
-  39: 1,
-  40: 1,
-  50: 2,
-  51: 2,
-  52: 2,
-  53: 3,
-  54: 3,
-  55: 3,
-  57: 4,
-  58: 4,
-  59: 4,
-  60: 6,
-  61: 6,
-  62: 6,
-  63: 7,
-  64: 7,
-  65: 7,
-  66: 8,
-  67: 8,
-  68: 8,
-  69: 9,
-  70: 9,
-  71: 9,
-};
+// Maps all 128 MIDI notes to the 8 keyboard keys
+const MIDI_TO_GRID_COLUMN: { [key: number]: number } = (() => {
+  const mapping: { [key: number]: number } = {};
+  for (let midi = 0; midi < 128; midi++) {
+    // Cycle through columns 1-9 (skipping 5 for the gap)
+    const keyIndex = midi % 8; // 0-7
+    const columns = [1, 2, 3, 4, 6, 7, 8, 9];
+    mapping[midi] = columns[keyIndex];
+  }
+  return mapping;
+})();
 
 // Map grid column back to key for keyboard animation
 const GRID_COLUMN_TO_KEY: { [key: number]: KeyName } = {
@@ -95,7 +80,6 @@ export default function App() {
           };
         });
 
-        console.log("Notes with colors:", midiNotes[0]);
         setNotes(midiNotes);
       };
       reader.readAsArrayBuffer(file);
@@ -138,6 +122,8 @@ export default function App() {
       setTimeout(() => {
         setKeyStates((prev) => ({ ...prev, [key]: false }));
       }, 100);
+    } else {
+      console.warn("No mapping for MIDI:", midi);
     }
   }, []);
 

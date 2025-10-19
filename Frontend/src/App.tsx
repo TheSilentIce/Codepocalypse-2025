@@ -1,25 +1,36 @@
 import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
-import {
-  generateChordNotes,
-  generateMelodyNotes,
-  generateMockNotes,
-  type Note,
-} from "./components/utilities";
-import "./App.css";
-
-import Keyboard from "./components/keyboard/Keyboard";
 import NoteRenderer from "./components/Note/NoteRenderer";
+import type { Note } from "./components/utilities";
+import { convertMidiToNotes } from "./components/utilities";
+
 function App() {
-  const notes: Note[] = generateChordNotes(30, 1000);
-  // const notes: Note[] = generateMockNotes(50, 1000);
-  // const notes: Note[] = generateMelodyNotes(30, 1000);
+  const [notes, setNotes] = useState<Note[]>([]);
+
+  // Wrap handleFileUpload to also update state
+  const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const midiNotes = convertMidiToNotes(reader.result as ArrayBuffer);
+      setNotes(midiNotes);
+    };
+    reader.readAsArrayBuffer(file);
+  };
 
   return (
     <div className="h-screen w-screen bg-black">
-      <NoteRenderer notes={notes} border={300} />
-      {/* <Keyboard /> */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex gap-2">
+        <input
+          type="file"
+          accept=".mid,.midi"
+          onChange={onFileChange}
+          className="px-4 py-2 rounded bg-gray-700 text-white"
+        />
+      </div>
+
+      {notes.length > 0 && <NoteRenderer notes={notes} border={300} />}
     </div>
   );
 }

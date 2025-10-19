@@ -1,96 +1,109 @@
 import { useEffect, useState, useRef } from "react";
 import FallingNote from "./FallingNote";
 import type { Note } from "../utilities";
+import { useAudioPlayer } from "../audio/AudioPlayer";
 
 interface RendererProps {
   notes: Note[];
   border: number;
-  triggerAttack: (midi: number, velocity?: number) => void;
-  triggerRelease: (midi: number) => void;
-  initAudio: () => Promise<void>;
-  isInitialized: boolean;
+  speedFactor?: number;
+  onNoteHit?: (midi: number) => void;
 }
 
 export default function NoteRenderer({
   notes,
   border,
-  triggerAttack,
-  triggerRelease,
-  initAudio,
-  isInitialized,
+  speedFactor = 1,
+  onNoteHit,
 }: RendererProps) {
   const [activeNotes, setActiveNotes] = useState<Note[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(0);
+  const { triggerAttack, initAudio, isInitialized } = useAudioPlayer();
 
-  // Debug logging
-  // console.log("=== NoteRenderer Debug ===");
-  // console.log("Notes passed to renderer:", notes.length);
-  // console.log("Active notes:", activeNotes.length);
-  // console.log("Border position:", border);
-  // console.log("Container height:", containerHeight);
-  // console.log("Audio initialized:", isInitialized);
-  // console.log(
-  //   "Border is at:",
-  //   ((border / containerHeight) * 100).toFixed(0) + "% from top",
-  // );
-  // console.log("Sample note:", notes[0]);
+  const LEAD_TIME = 2; // seconds for note to fall visually
+
+  // Initialize audio once
+  useEffect(() => {
+    initAudio();
+  }, [initAudio]);
 
   // Measure container height dynamically
   useEffect(() => {
-    if (containerRef.current) {
-      setContainerHeight(containerRef.current.clientHeight);
-    }
-    const handleResize = () => {
-      if (containerRef.current) {
+    const updateHeight = () => {
+      if (containerRef.current)
         setContainerHeight(containerRef.current.clientHeight);
-      }
     };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    return () => window.removeEventListener("resize", updateHeight);
   }, []);
 
-  // Schedule notes based on startTime
+  // Schedule notes to appear on screen
   useEffect(() => {
-    if (!notes.length) return;
+    if (!notes.length || !isInitialized) return;
+
+    // Group notes by startTime
     const grouped = new Map<number, Note[]>();
     notes.forEach((note) => {
-      const t = note.startTime ?? 0;
-      if (!grouped.has(t)) grouped.set(t, []);
-      grouped.get(t)!.push(note);
+      const adjustedStartTime = (note.startTime ?? 0) / speedFactor;
+      const adjustedDuration = (note.duration ?? 1) / speedFactor;
+      const n: Note = {
+        ...note,
+        startTime: adjustedStartTime,
+        duration: adjustedDuration,
+      };
+      if (!grouped.has(adjustedStartTime)) grouped.set(adjustedStartTime, []);
+      grouped.get(adjustedStartTime)!.push(n);
     });
-    const timers: number[] = [];
+
     grouped.forEach((group, startTime) => {
-      const timer = window.setTimeout(() => {
-        setActiveNotes((prev) => [...prev, ...group]);
-      }, startTime * 1000);
-      timers.push(timer);
+      group.forEach((note, index) => {
+        // Apply small horizontal offset for overlapping notes
+        const xOffset = index * 5;
+        note.x = (note.x ?? 0) + xOffset;
+
+        // Schedule visual spawn LEAD_TIME seconds BEFORE the note should play
+        const spawnTime = Math.max((startTime - LEAD_TIME) * 1000, 0);
+        const timeoutId = setTimeout(() => {
+          setActiveNotes((prev) => [...prev, note]);
+        }, spawnTime);
+
+        return () => clearTimeout(timeoutId);
+      });
     });
-    return () => timers.forEach(clearTimeout);
-  }, [notes]);
+  }, [notes, isInitialized, speedFactor]);
+
+  // Callback when a note reaches the bottom - trigger audio and keyboard feedback
+  const handleNoteHitBorder = (noteId: string | number) => {
+    const hitNote = activeNotes.find((n) => n.id === noteId);
+    if (hitNote) {
+      console.log("Note hit:", {
+        midi: hitNote.midi,
+        x: hitNote.x,
+        id: hitNote.id,
+      });
+      triggerAttack(
+        hitNote.midi,
+        hitNote.velocity ?? 0.7,
+        hitNote.duration ?? 1,
+      );
+      // Notify parent to light up keyboard
+      onNoteHit?.(hitNote.midi);
+    }
+    removeNote(noteId as string);
+  };
 
   const removeNote = (id: string) => {
     setActiveNotes((prev) => prev.filter((n) => n.id !== id));
   };
 
-  // Manual audio init button
-  const handleInitAudio = async () => {
-    // console.log("Manual audio init clicked");
-    await initAudio();
-  };
-
-  // Test button to verify audio works
-  const testSound = () => {
-    // console.log("Test sound button clicked");
-    triggerAttack(60, 0.8);
-    setTimeout(() => triggerRelease(60), 500);
-  };
-
   return (
-    <div className="relative w-full">
+    <div className="relative w-full h-full">
       <div
         ref={containerRef}
-        className="w-full relative h-[400px] overflow-hidden bg-black"
+        className="w-full h-full relative overflow-hidden bg-black"
+        style={{ minHeight: "100%" }}
       >
         {activeNotes.map((note) => (
           <FallingNote
@@ -98,9 +111,8 @@ export default function NoteRenderer({
             note={note}
             border={border}
             containerHeight={containerHeight}
-            onFinish={removeNote}
-            triggerAttack={triggerAttack}
-            triggerRelease={triggerRelease}
+            leadTime={LEAD_TIME}
+            onFinish={handleNoteHitBorder}
           />
         ))}
       </div>

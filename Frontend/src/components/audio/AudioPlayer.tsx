@@ -10,7 +10,7 @@ export const useAudioPlayer = () => {
     if (!synthRef.current) {
       synthRef.current = new Tone.PolySynth(Tone.Synth).toDestination();
 
-      synthRef.current.maxPolyphony = 12;
+      synthRef.current.maxPolyphony = 64;
       synthRef.current.volume.value = -12;
       synthRef.current.set({
         envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 0.8 },
@@ -29,7 +29,7 @@ export const useAudioPlayer = () => {
     if (!isInitialized) {
       await Tone.start();
       setIsInitialized(true);
-      console.log("Audio initialized!");
+      // console.log("Audio initialized!");
     }
   }, [isInitialized]);
 

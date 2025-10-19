@@ -31,39 +31,31 @@ export default function FallingNote({
   const extraHeight = 50;
   const motionHeight = noteHeight + extraHeight;
   const y = useMotionValue(-motionHeight);
-  const [isTouchingBorder, setIsTouchingBorder] = useState(false);
-  const hasAttackedRef = useRef(false);
+  const hasPlayedRef = useRef(false);
 
-  // Detect when note enters/exits the border
+  // Use motionValueEvent to check **every frame**
   useMotionValueEvent(y, "change", (latest) => {
-    const visualBottom = latest + noteHeight;
-    const visualTop = latest;
-    const touching = visualBottom >= border && visualTop <= border;
-    if (touching !== isTouchingBorder) setIsTouchingBorder(touching);
+    if (!hasPlayedRef.current && latest + noteHeight >= border) {
+      // Trigger the note **exactly when it hits the floor**
+      if (triggerAttack) {
+        // Use triggerAttackRelease for exact duration
+        if ("triggerAttackRelease" in triggerAttack) {
+          (triggerAttack as any).triggerAttackRelease?.(
+            midi,
+            duration,
+            velocity,
+          );
+        } else {
+          triggerAttack(midi, velocity);
+          if (triggerRelease) {
+            setTimeout(() => triggerRelease(midi), duration * 1000);
+          }
+        }
+      }
+
+      hasPlayedRef.current = true;
+    }
   });
-
-  // Attack when entering border
-  useEffect(() => {
-    if (isTouchingBorder && !hasAttackedRef.current && triggerAttack) {
-      triggerAttack(midi, velocity);
-      hasAttackedRef.current = true;
-    }
-  }, [isTouchingBorder, triggerAttack, midi, velocity]);
-
-  // Release when leaving border
-  useEffect(() => {
-    if (!isTouchingBorder && hasAttackedRef.current && triggerRelease) {
-      triggerRelease(midi);
-      hasAttackedRef.current = false;
-    }
-  }, [isTouchingBorder, triggerRelease, midi]);
-
-  // Release on unmount
-  useEffect(() => {
-    return () => {
-      if (hasAttackedRef.current && triggerRelease) triggerRelease(midi);
-    };
-  }, [triggerRelease, midi]);
 
   return (
     <div
@@ -85,11 +77,8 @@ export default function FallingNote({
           backgroundColor: color,
           borderRadius: 4,
           zIndex: 1,
-          boxShadow: isTouchingBorder
-            ? `0 0 30px ${color}, 0 0 60px ${color}, inset 0 0 30px ${color}`
-            : `0 0 20px ${color}, 0 0 40px ${color}, inset 0 0 20px ${color}`,
+          boxShadow: `0 0 20px ${color}, 0 0 40px ${color}, inset 0 0 20px ${color}`,
           filter: "brightness(1.3) saturate(1.5)",
-          transition: "box-shadow 0.1s ease",
         }}
         animate={{ top: containerHeight }}
         transition={{ duration: duration * 5, ease: "linear" }}

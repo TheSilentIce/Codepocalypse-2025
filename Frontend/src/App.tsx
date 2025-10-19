@@ -1,47 +1,134 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
-import type { Note } from "./components/utilities";
-import "./App.css";
-import Keys from "./components/keyboard/Keys";
-import Keyboard from "./components/keyboard/Keyboard";
+import { useCallback, useEffect, useState } from "react";
 import NoteRenderer from "./components/Note/NoteRenderer";
+import type { Note } from "./components/utilities";
+import { convertMidiToNotes } from "./components/utilities";
+
+import { Keyboard } from "./components/keyboard/KeyboardTwo";
+type KeyName = "a" | "s" | "d" | "f" | "j" | "k" | "l" | ";";
+
+// Type for the state object holding the pressed status of all target keys
+interface KeyStateMap {
+  [key: string]: boolean;
+}
+
+// Props for the individual PianoKey component
+interface PianoKeyProps {
+  x: number;
+  y: number;
+  size: number;
+  keyName: KeyName | string;
+  isPressed: boolean;
+}
+
+// Props for the Keyboard component
+interface KeyboardProps {
+  keyStates: KeyStateMap;
+}
+// ------------------------
+
+// Define the keys we are interested in tracking
+const TARGET_KEYS: KeyName[] = ["a", "s", "d", "f", "j", "k", "l", ";"];
+
+// --- Configuration for the Piano Key Layout ---
+const KEY_SIZE = 60; // Base width of a key in pixels
+const KEY_Y_OFFSET = 50; // Y offset from the top for all keys
+
+// Map keys to their horizontal position index, skipping one index for the gap
+const KEY_LAYOUT: { [key: string]: number } = {
+  a: 0,
+  s: 1,
+  d: 2,
+  f: 3,
+  j: 5, // Gap at index 4
+  k: 6,
+  l: 7,
+  ";": 8,
+};
+// ---------------------------------------------
+
+// Initial state object where all keys are set to false (not pressed)
+const createInitialKeyState = (): KeyStateMap => {
+  return TARGET_KEYS.reduce((acc, key) => {
+    acc[key] = false;
+    return acc;
+  }, {} as KeyStateMap); // Type assertion needed for reduce initial value
+};
+
 function App() {
-  const notes: Note[] = [];
-  const keys = [60, 62, 64, 65, 67, 69, 71]; // some MIDI notes
-  let currentTime = 0;
+  const [notes, setNotes] = useState<Note[]>([]);
 
-  const lastEndTimes: Record<number, number> = {}; // track last end per key
+  // Wrap handleFileUpload to also update state
+  const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-  for (let i = 0; i < 20; i++) {
-    const midi = keys[Math.floor(Math.random() * keys.length)];
-    const duration = 0.8 + Math.random() * 1.2; // 0.8–2 sec
-    const lastEnd = lastEndTimes[midi] ?? 0;
-    const startTime = Math.max(currentTime, lastEnd); // ensure no overlap on same key
-    const color = ["aqua", "lime", "green", "orange", "blue", "pink", "yellow"][
-      i % 7
-    ];
-    const x = 50 + (midi - 60) * 30;
-    const width = 15 + Math.floor(Math.random() * 10);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const midiNotes = convertMidiToNotes(reader.result as ArrayBuffer);
+      setNotes(midiNotes);
+    };
+    reader.readAsArrayBuffer(file);
+  };
+  const [keyStates, setKeyStates] = useState<KeyStateMap>(
+    createInitialKeyState,
+  );
 
-    notes.push({
-      id: `n${i + 1}`,
-      midi,
-      startTime,
-      duration,
-      color,
-      x,
-      width,
-    });
+  // Function to handle key state updates
+  const updateKeyState = useCallback((key: string, isPressed: boolean) => {
+    if (TARGET_KEYS.includes(key as KeyName)) {
+      setKeyStates((prevStates) => {
+        if (prevStates[key] === isPressed) {
+          return prevStates;
+        }
+        return {
+          ...prevStates,
+          [key]: isPressed,
+        };
+      });
+    }
+  }, []);
 
-    lastEndTimes[midi] = startTime + duration; // update last end for this key
-    currentTime = startTime + Math.random() * 0.5; // small spacing before next note
-  }
+  // Event handler for keydown
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (!event.repeat) {
+        updateKeyState(event.key.toLowerCase(), true);
+      }
+    },
+    [updateKeyState],
+  );
 
+  // Event handler for keyup
+  const handleKeyUp = useCallback(
+    (event: KeyboardEvent) => {
+      updateKeyState(event.key.toLowerCase(), false);
+    },
+    [updateKeyState],
+  );
+
+  // useEffect to set up and clean up global event listeners
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [handleKeyDown, handleKeyUp]);
   return (
     <div className="h-screen w-screen bg-black">
-      <NoteRenderer notes={notes} border={400} />
-      <Keys x={0} y={0} size={100} isPressed={0}></Keys>
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex gap-2">
+        <input
+          type="file"
+          accept=".mid,.midi"
+          onChange={onFileChange}
+          className="px-4 py-2 rounded bg-gray-700 text-white"
+        />
+      </div>
+
+      {notes.length > 0 && <NoteRenderer notes={notes} border={300} />}
+      <Keyboard keyStates={keyStates} />
     </div>
   );
 }

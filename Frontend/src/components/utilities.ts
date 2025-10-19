@@ -1,3 +1,5 @@
+import { Midi } from "@tonejs/midi";
+
 export interface Note {
   id: string;
   midi: number;
@@ -10,6 +12,47 @@ export interface Note {
   x?: number;
   width?: number;
 }
+
+export const handleFileUpload = (
+  event: React.ChangeEvent<HTMLInputElement>,
+) => {
+  const file = event.target.files?.[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const notes = convertMidiToNotes(reader.result as ArrayBuffer);
+      console.log(notes);
+      // Now you can pass the `notes` array to your NoteRenderer component
+    };
+    reader.readAsArrayBuffer(file);
+  }
+};
+
+export const convertMidiToNotes = (midiFile: ArrayBuffer): Note[] => {
+  const midi = new Midi(midiFile);
+  const notes: Note[] = [];
+  const keyWidth = 20;
+  const pianoStartMidi = 21;
+
+  midi.tracks.forEach((track, trackIndex) => {
+    track.notes.forEach((note, index) => {
+      notes.push({
+        id: `${trackIndex}-${index}`,
+        midi: note.midi,
+        startTime: note.time,
+        duration: note.duration,
+        velocity: note.velocity,
+        track: trackIndex,
+        isActive: false,
+        x: (note.midi - pianoStartMidi) * keyWidth,
+        width: keyWidth,
+        color: `hsl(${(trackIndex * 60) % 360}, 80%, 50%)`,
+      });
+    });
+  });
+
+  return notes;
+};
 
 // MIDI note range for piano (21-108 is standard 88-key piano)
 const MIDI_MIN = 21;

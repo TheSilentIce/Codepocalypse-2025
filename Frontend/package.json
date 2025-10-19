@@ -12,6 +12,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.14",
     "@tonejs/midi": "^2.0.28",
+    "axios": "^1.12.2",
     "midi-sounds-react": "^1.2.54",
     "motion": "^12.23.24",
     "react": "^19.1.1",

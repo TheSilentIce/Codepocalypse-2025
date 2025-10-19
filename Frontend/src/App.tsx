@@ -4,6 +4,7 @@ import type { Note } from "./components/utilities";
 import { convertMidiToNotes } from "./components/utilities";
 import { Keyboard } from "./components/keyboard/KeyboardTwo";
 import type { KeyName } from "./components/keyboard/KeyboardTwo";
+import axios from "axios";
 
 interface KeyStateMap {
   [key: string]: boolean;
@@ -62,6 +63,11 @@ export default function App() {
   const handleFileChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
+      const formData = new FormData();
+      if(file != undefined) {
+        formData.append("theFile", file, file.name);
+        axios.post("http://localhost:5000/api/upload");
+      }
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {

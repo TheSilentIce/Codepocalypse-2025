@@ -1,11 +1,12 @@
 import { motion, useMotionValue, useMotionValueEvent } from "motion/react";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import type { Note } from "../utilities";
 
 interface FallingNoteProps {
   note: Note;
   border: number;
   containerHeight: number;
+  leadTime: number; // How long the note takes to fall (in seconds)
   onFinish?: (id: string | number) => void;
 }
 
@@ -13,19 +14,21 @@ export default function FallingNote({
   note,
   border,
   containerHeight,
+  leadTime,
   onFinish,
 }: FallingNoteProps) {
   const x = note.x ?? 0;
   const width = note.width ?? 20;
   const color = note.color ?? "aqua";
 
-  const LEAD_TIME = note.duration ?? 2; // seconds for note to fall
   const extraHeight = 50;
   const noteHeight = 20 + (note.duration ?? 1) * 10;
   const motionHeight = noteHeight + extraHeight;
-
   const y = useMotionValue(-motionHeight);
   const hasFinishedRef = useRef(false);
+
+  // Use the leadTime prop for animation duration
+  const animationDuration = leadTime;
 
   // Fire onFinish when note reaches the bottom
   useMotionValueEvent(y, "change", (latest) => {
@@ -59,7 +62,7 @@ export default function FallingNote({
           filter: "brightness(1.3) saturate(1.5)",
         }}
         animate={{ top: containerHeight }}
-        transition={{ duration: LEAD_TIME, ease: "linear" }}
+        transition={{ duration: animationDuration, ease: "linear" }}
       />
     </div>
   );

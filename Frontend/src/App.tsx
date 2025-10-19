@@ -17,17 +17,55 @@ const createInitialKeyState = (): KeyStateMap =>
     return acc;
   }, {} as KeyStateMap);
 
-// MIDI to keyboard key mapping
-// Maps your actual MIDI range to the 8 keys
-const MIDI_TO_KEY: { [key: number]: KeyName } = {
-  38: "a",
-  50: "s",
-  53: "d",
-  57: "f",
-  60: "j",
-  62: "k",
-  64: "l",
-  // Add more mappings if needed
+// Grid column mapping for each MIDI note (1-indexed for CSS Grid)
+const MIDI_TO_GRID_COLUMN: { [key: number]: number } = {
+  38: 1,
+  39: 1,
+  40: 1,
+  50: 2,
+  51: 2,
+  52: 2,
+  53: 3,
+  54: 3,
+  55: 3,
+  57: 4,
+  58: 4,
+  59: 4,
+  60: 6,
+  61: 6,
+  62: 6,
+  63: 7,
+  64: 7,
+  65: 7,
+  66: 8,
+  67: 8,
+  68: 8,
+  69: 9,
+  70: 9,
+  71: 9,
+};
+
+// Map grid column back to key for keyboard animation
+const GRID_COLUMN_TO_KEY: { [key: number]: KeyName } = {
+  1: "a",
+  2: "s",
+  3: "d",
+  4: "f",
+  6: "j",
+  7: "k",
+  8: "l",
+  9: ";",
+};
+
+const KEY_COLORS: { [key: string]: string } = {
+  a: "#FF6B6B",
+  s: "#4ECDC4",
+  d: "#45B7D1",
+  f: "#FFA07A",
+  j: "#98D8C8",
+  k: "#F7DC6F",
+  l: "#BB8FCE",
+  ";": "#85C1E2",
 };
 
 export default function App() {
@@ -42,7 +80,22 @@ export default function App() {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {
-        const midiNotes = convertMidiToNotes(reader.result as ArrayBuffer);
+        let midiNotes = convertMidiToNotes(reader.result as ArrayBuffer, 880);
+
+        // Remap x positions to grid columns and assign colors
+        midiNotes = midiNotes.map((note) => {
+          const gridColumn = MIDI_TO_GRID_COLUMN[note.midi] ?? 1;
+          const key = GRID_COLUMN_TO_KEY[gridColumn];
+          const pixelX = (gridColumn - 1) * 60 + 30;
+          const noteColor = KEY_COLORS[key] || "#FF00FF";
+          return {
+            ...note,
+            x: pixelX,
+            color: noteColor,
+          };
+        });
+
+        console.log("Notes with colors:", midiNotes[0]);
         setNotes(midiNotes);
       };
       reader.readAsArrayBuffer(file);
@@ -78,12 +131,8 @@ export default function App() {
   }, [handleKeyDown, handleKeyUp]);
 
   const handleNoteHit = useCallback((midi: number) => {
-    const key = MIDI_TO_KEY[midi];
-    console.log("handleNoteHit:", {
-      midi,
-      mappedKey: key,
-      allMappings: MIDI_TO_KEY,
-    });
+    const gridColumn = MIDI_TO_GRID_COLUMN[midi];
+    const key = gridColumn ? GRID_COLUMN_TO_KEY[gridColumn] : undefined;
     if (key) {
       setKeyStates((prev) => ({ ...prev, [key]: true }));
       setTimeout(() => {
@@ -94,7 +143,6 @@ export default function App() {
 
   return (
     <div className="h-screen w-screen bg-black flex flex-col">
-      {/* --- MIDI Upload --- */}
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex gap-2">
         <input
           type="file"
@@ -104,19 +152,19 @@ export default function App() {
         />
       </div>
 
-      {/* --- Falling notes (takes remaining space) --- */}
       {notes.length > 0 && (
-        <div className="flex-1">
-          <NoteRenderer
-            notes={notes}
-            border={550}
-            speedFactor={1}
-            onNoteHit={handleNoteHit}
-          />
+        <div className="flex-1 flex justify-center">
+          <div style={{ width: "540px" }}>
+            <NoteRenderer
+              notes={notes}
+              border={725}
+              speedFactor={1}
+              onNoteHit={handleNoteHit}
+            />
+          </div>
         </div>
       )}
 
-      {/* --- Keyboard (pinned to bottom) --- */}
       <div className="flex justify-center pb-4">
         <Keyboard keyStates={keyStates} />
       </div>

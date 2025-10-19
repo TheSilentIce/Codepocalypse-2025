@@ -31,8 +31,16 @@ export default function NoteRenderer({
   // Measure container height dynamically
   useEffect(() => {
     const updateHeight = () => {
-      if (containerRef.current)
-        setContainerHeight(containerRef.current.clientHeight);
+      if (containerRef.current) {
+        const height = containerRef.current.clientHeight;
+        setContainerHeight(height);
+        const rect = containerRef.current.getBoundingClientRect();
+        console.log("Notes container:", {
+          height,
+          clientHeight: height,
+          top: rect.top,
+        });
+      }
     };
     updateHeight();
     window.addEventListener("resize", updateHeight);
@@ -98,12 +106,18 @@ export default function NoteRenderer({
     setActiveNotes((prev) => prev.filter((n) => n.id !== id));
   };
 
+  const MASK_HEIGHT = 80; // Height of fade-out zone at bottom
+
   return (
     <div className="relative w-full h-full">
       <div
         ref={containerRef}
-        className="w-full h-full relative overflow-hidden bg-black"
-        style={{ minHeight: "100%" }}
+        className="w-full h-full relative overflow-visible bg-black"
+        style={{
+          minHeight: "100%",
+          maskImage: `linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) ${((containerHeight - MASK_HEIGHT) / containerHeight) * 100}%, rgba(0,0,0,0) 100%)`,
+          WebkitMaskImage: `linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) ${((containerHeight - MASK_HEIGHT) / containerHeight) * 100}%, rgba(0,0,0,0) 100%)`,
+        }}
       >
         {activeNotes.map((note) => (
           <FallingNote

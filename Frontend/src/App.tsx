@@ -67,13 +67,13 @@ export default function App() {
     createInitialKeyState(),
   );
   const [containerHeight, setContainerHeight] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const noteContainerRef = useRef<HTMLDivElement>(null);
 
-  // Measure the actual container height
+  // Measure the actual note container height
   useEffect(() => {
     const updateHeight = () => {
-      if (containerRef.current) {
-        setContainerHeight(containerRef.current.clientHeight);
+      if (noteContainerRef.current) {
+        setContainerHeight(noteContainerRef.current.clientHeight);
       }
     };
     updateHeight();
@@ -84,36 +84,11 @@ export default function App() {
   const handleFileChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
-      if (!file) return; // Exit if no file is selected
-
-const formData = new FormData();
-// Ensure your backend looks for the field named "theFile"
-formData.append("theFile", file, file.name);
-
-// --- CORRECTED FILE UPLOADING ---
-
-axios.post("http://localhost:5000/api/upload", formData)
-    .then(response => {
-        // SUCCESS: Log the successful upload response
-        console.log("File uploaded successfully to backend:", response.data);
-    })
-    .catch(error => {
-        // FAILURE: Critical for diagnosing issues! 
-        console.error("File upload failed (Network or Server Error):", error);
-        
-        // Detailed logging for common errors:
-        if (error.response) {
-            // Server responded with a status code outside 2xx (e.g., 404, 500)
-            console.error("Server responded with error status:", error.response.status);
-            console.error("Server error message:", error.response.data);
-        } else if (error.request) {
-            // Request was made, but no response was received (e.g., server down, CORS issue)
-            console.error("No response received from server.");
-        } else {
-            // Something else went wrong (e.g., request setup error)
-            console.error("Request setup error:", error.message);
-        }
-    });
+      const formData = new FormData();
+      if (file != undefined) {
+        formData.append("theFile", file, file.name);
+        axios.post("http://localhost:5000/api/upload");
+      }
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {
@@ -214,7 +189,7 @@ useEffect(() => {
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex gap-2">
         <input
           type="file"
-          accept=".mid,.midi,.mp3,.wav,.m4a,.aac,.ogg,.flac"
+          accept=".mid,.midi"
           onChange={handleFileChange}
           className="px-4 py-2 rounded bg-gray-700 text-white"
         />
@@ -224,21 +199,73 @@ useEffect(() => {
         <MidiList onMidiSelect={handleMidiSelect} />
       </div>
 
-      {notes.length > 0 && (
-        <div ref={containerRef} className="flex-1 flex justify-center">
-          <div style={{ width: "540px", height: "100%" }}>
-            <NoteRenderer
-              notes={notes}
-              border={containerHeight * 0.95}
-              speedFactor={1}
-              onNoteHit={handleNoteHit}
-            />
+      {notes.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center px-6">
+          <div className="text-center max-w-2xl">
+            <div className="mb-8 relative">
+              <div className="w-32 h-32 mx-auto bg-gradient-to-br from-purple-400 via-pink-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-2xl transform hover:scale-110 transition-transform duration-300">
+                <span className="text-6xl">🎹</span>
+              </div>
+              <div className="absolute inset-0 w-32 h-32 mx-auto bg-purple-500 rounded-3xl blur-2xl opacity-50 animate-pulse"></div>
+            </div>
+
+            <h2 className="text-5xl font-bold text-white mb-4 leading-tight">
+              Play Music Like a{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
+                Hero
+              </span>
+            </h2>
+
+            <p className="text-xl text-gray-300 mb-12 leading-relaxed">
+              Upload your MIDI file and experience the magic of visual music
+              gameplay. Hit the notes as they fall and feel the rhythm come
+              alive.
+            </p>
+
+            <div className="flex justify-center gap-4 text-sm text-gray-400">
+              <div className="flex items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/10">
+                <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></span>
+                <span>Visual feedback</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/10">
+                <span className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></span>
+                <span>8-key system</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex justify-center pt-24 px-6">
+          <div
+            ref={noteContainerRef}
+            className="relative rounded-3xl overflow-hidden shadow-2xl border border-white/10"
+            style={{ width: "540px", height: "100%" }}
+          >
+            {/* Beautiful background gradient only */}
+            <div className="absolute inset-0 bg-gradient-to-b from-slate-900/95 via-purple-900/30 to-slate-900/95 pointer-events-none z-0"></div>
+
+            {/* Hit zone indicator at bottom */}
+            <div
+              className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-purple-400 to-transparent shadow-lg shadow-purple-500/50 pointer-events-none z-20"
+              style={{ bottom: "5%" }}
+            ></div>
+
+            <div className="absolute inset-0 z-10">
+              <NoteRenderer
+                notes={notes}
+                border={containerHeight * 0.95}
+                speedFactor={1}
+                onNoteHit={handleNoteHit}
+              />
+            </div>
           </div>
         </div>
       )}
 
-      <div className="flex justify-center pb-4">
-        <Keyboard keyStates={keyStates} />
+      <div className="flex justify-center pb-8 relative z-10">
+        <div className="bg-black/30 backdrop-blur-sm rounded-2xl p-4 shadow-2xl border border-white/10">
+          <Keyboard keyStates={keyStates} />
+        </div>
       </div>
     </div>
   );

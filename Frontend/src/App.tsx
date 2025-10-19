@@ -18,16 +18,20 @@ const createInitialKeyState = (): KeyStateMap =>
     return acc;
   }, {} as KeyStateMap);
 
+// Grid column mapping for each MIDI note (1-indexed for CSS Grid)
+// Maps all 128 MIDI notes to the 8 keyboard keys
 const MIDI_TO_GRID_COLUMN: { [key: number]: number } = (() => {
   const mapping: { [key: number]: number } = {};
   for (let midi = 0; midi < 128; midi++) {
-    const keyIndex = midi % 8;
+    // Cycle through columns 1-9 (skipping 5 for the gap)
+    const keyIndex = midi % 8; // 0-7
     const columns = [1, 2, 3, 4, 6, 7, 8, 9];
     mapping[midi] = columns[keyIndex];
   }
   return mapping;
 })();
 
+// Map grid column back to key for keyboard animation
 const GRID_COLUMN_TO_KEY: { [key: number]: KeyName } = {
   1: "a",
   2: "s",
@@ -83,6 +87,7 @@ export default function App() {
       reader.onload = () => {
         let midiNotes = convertMidiToNotes(reader.result as ArrayBuffer, 880);
 
+        // Remap x positions to grid columns and assign colors
         midiNotes = midiNotes.map((note) => {
           const gridColumn = MIDI_TO_GRID_COLUMN[note.midi] ?? 1;
           const key = GRID_COLUMN_TO_KEY[gridColumn];
@@ -159,7 +164,7 @@ export default function App() {
               <span className="text-white text-xl font-bold">♪</span>
             </div>
             <h1 className="text-2xl font-bold text-white tracking-tight">
-              MIDI <span className="text-purple-400">Hero</span>
+              Symphon<span className="text-purple-400">ix</span>
             </h1>
           </div>
 

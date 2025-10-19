@@ -1,20 +1,15 @@
 import { motion, useMotionValue, useMotionValueEvent } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import ParticleBurst from "./ParticleBurst";
-
-interface Note {
-  id: string | number;
-  x?: number;
-  width?: number;
-  duration?: number;
-  color?: string;
-}
+import { type Note } from "../utilities";
 
 interface FallingNoteProps {
   note: Note;
   border: number;
   containerHeight: number;
   onFinish?: (id: string | number) => void;
+  triggerAttack?: (midi: number, velocity: number) => void;
+  triggerRelease?: (midi: number) => void;
 }
 
 export default function FallingNote({
@@ -22,21 +17,53 @@ export default function FallingNote({
   border,
   containerHeight,
   onFinish,
+  triggerAttack,
+  triggerRelease,
 }: FallingNoteProps) {
   const x = note.x ?? 0;
   const width = note.width ?? 20;
   const duration = note.duration ?? 1;
   const color = note.color ?? "aqua";
+  const midi = note.midi ?? 60;
+  const velocity = note.velocity ?? 0.7;
+
   const noteHeight = 20 + duration * 10;
   const extraHeight = 50;
   const motionHeight = noteHeight + extraHeight;
   const y = useMotionValue(-motionHeight);
-  const [hitBorder, setHitBorder] = useState(false);
+  const [isTouchingBorder, setIsTouchingBorder] = useState(false);
+  const hasAttackedRef = useRef(false);
 
+  // Detect when note enters/exits the border
   useMotionValueEvent(y, "change", (latest) => {
-    const bottom = latest + motionHeight;
-    if (bottom >= border) setHitBorder(true);
+    const visualBottom = latest + noteHeight;
+    const visualTop = latest;
+    const touching = visualBottom >= border && visualTop <= border;
+    if (touching !== isTouchingBorder) setIsTouchingBorder(touching);
   });
+
+  // Attack when entering border
+  useEffect(() => {
+    if (isTouchingBorder && !hasAttackedRef.current && triggerAttack) {
+      triggerAttack(midi, velocity);
+      hasAttackedRef.current = true;
+    }
+  }, [isTouchingBorder, triggerAttack, midi, velocity]);
+
+  // Release when leaving border
+  useEffect(() => {
+    if (!isTouchingBorder && hasAttackedRef.current && triggerRelease) {
+      triggerRelease(midi);
+      hasAttackedRef.current = false;
+    }
+  }, [isTouchingBorder, triggerRelease, midi]);
+
+  // Release on unmount
+  useEffect(() => {
+    return () => {
+      if (hasAttackedRef.current && triggerRelease) triggerRelease(midi);
+    };
+  }, [triggerRelease, midi]);
 
   return (
     <div
@@ -49,7 +76,6 @@ export default function FallingNote({
         pointerEvents: "none",
       }}
     >
-      {/* Note itself */}
       <motion.div
         style={{
           position: "absolute",
@@ -59,13 +85,16 @@ export default function FallingNote({
           backgroundColor: color,
           borderRadius: 4,
           zIndex: 1,
+          boxShadow: isTouchingBorder
+            ? `0 0 30px ${color}, 0 0 60px ${color}, inset 0 0 30px ${color}`
+            : `0 0 20px ${color}, 0 0 40px ${color}, inset 0 0 20px ${color}`,
+          filter: "brightness(1.3) saturate(1.5)",
+          transition: "box-shadow 0.1s ease",
         }}
         animate={{ top: containerHeight }}
-        transition={{ duration: duration * 1, ease: "linear" }}
+        transition={{ duration: duration * 5, ease: "linear" }}
         onAnimationComplete={() => onFinish?.(note.id)}
       />
-
-      {/* ParticleBurst aligned with note */}
       <ParticleBurst
         x={0}
         yMotion={y}

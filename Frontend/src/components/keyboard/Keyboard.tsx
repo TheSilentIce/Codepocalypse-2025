@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, type CSSProperties } from 'react';
-
+import Keys from './Keys';
 // --- Type Definitions ---
 type KeyName = 'a' | 's' | 'd' | 'f' | 'j' | 'k' | 'l' | ';';
 

@@ -273,7 +273,7 @@ def upload_file():
     """
     try:
         # Check if file is present in request
-        if "file" not in request.files:
+        if "theFile" not in request.files:
             return (
                 jsonify(
                     {
@@ -284,7 +284,7 @@ def upload_file():
                 400,
             )
 
-        file = request.files["file"]
+        file = request.files["theFile"]
 
         # Check if file was selected
         if file.filename == "":

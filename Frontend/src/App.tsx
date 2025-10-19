@@ -77,15 +77,40 @@ export default function App() {
   const handleFileChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
-      const formData = new FormData();
-      if(file != undefined) {
-        formData.append("theFile", file, file.name);
-        axios.post("http://localhost:5000/api/upload");
-      }
+      if (!file) return; // Exit if no file is selected
+
+const formData = new FormData();
+// Ensure your backend looks for the field named "theFile"
+formData.append("theFile", file, file.name);
+
+// --- CORRECTED FILE UPLOADING ---
+
+axios.post("http://localhost:5000/api/upload", formData)
+    .then(response => {
+        // SUCCESS: Log the successful upload response
+        console.log("File uploaded successfully to backend:", response.data);
+    })
+    .catch(error => {
+        // FAILURE: Critical for diagnosing issues! 
+        console.error("File upload failed (Network or Server Error):", error);
+        
+        // Detailed logging for common errors:
+        if (error.response) {
+            // Server responded with a status code outside 2xx (e.g., 404, 500)
+            console.error("Server responded with error status:", error.response.status);
+            console.error("Server error message:", error.response.data);
+        } else if (error.request) {
+            // Request was made, but no response was received (e.g., server down, CORS issue)
+            console.error("No response received from server.");
+        } else {
+            // Something else went wrong (e.g., request setup error)
+            console.error("Request setup error:", error.message);
+        }
+    });
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {
-        let midiNotes = convertMidiToNotes(reader.result as ArrayBuffer, 880);
+        let midiNotes = convertMidiToNotes(reader.result as ArrayBuffer);
 
         // Remap x positions to grid columns and assign colors
         midiNotes = midiNotes.map((note) => {

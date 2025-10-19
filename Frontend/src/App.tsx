@@ -177,7 +177,7 @@ axios.post("http://localhost:5000/api/upload", formData)
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex gap-2">
         <input
           type="file"
-          accept=".mid,.midi"
+          accept=".mid,.midi,.mp3,.wav,.m4a,.aac,.ogg,.flac"
           onChange={handleFileChange}
           className="px-4 py-2 rounded bg-gray-700 text-white"
         />

@@ -3,6 +3,7 @@ import NoteRenderer from "./components/Note/NoteRenderer";
 import type { Note } from "./components/utilities";
 import { Keyboard } from "./components/keyboard/KeyboardTwo";
 import type { KeyName } from "./components/keyboard/KeyboardTwo";
+import MidiList from "./components/MidiList";
 import axios from "axios";
 import {
   convertMidiToNotes,
@@ -203,6 +204,11 @@ useEffect(() => {
     }
   }, []);
 
+  const handleMidiSelect = useCallback((selectedNotes: Note[], filename: string) => {
+    console.log(`Loading MIDI: ${filename}`);
+    setNotes(selectedNotes);
+  }, []);
+
   return (
     <div className="h-screen w-screen bg-black flex flex-col">
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex gap-2">
@@ -213,27 +219,11 @@ useEffect(() => {
           className="px-4 py-2 rounded bg-gray-700 text-white"
         />
       </div>
-{/* MIDI file list from backend */}
-        <div className="bg-gray-800 rounded-lg p-4 min-w-[300px]">
-          <h2 className="text-white text-lg font-semibold mb-3">Available MIDI Files</h2>
-          {loadingMidis ? (
-            <p className="text-gray-400">Loading...</p>
-          ) : midiFiles.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              {midiFiles.map((filename) => (
-                <button
-                  key={filename}
-                  onClick={() => handleMidiClick(filename)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors duration-200"
-                >
-                  {filename}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-400">No MIDI files available</p>
-          )}
-        </div>
+
+      <div className="absolute top-4 left-4 z-50 w-80">
+        <MidiList onMidiSelect={handleMidiSelect} />
+      </div>
+
       {notes.length > 0 && (
         <div ref={containerRef} className="flex-1 flex justify-center">
           <div style={{ width: "540px", height: "100%" }}>

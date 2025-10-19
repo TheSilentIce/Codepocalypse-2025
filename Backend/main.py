@@ -12,23 +12,6 @@ def home():
         'status': 'running'
     })
 
-
-@app.route('/api/health')
-def health():
-    return jsonify({
-        'status': 'healthy',
-        'service': 'backend'
-    })
-
-
-@app.route('/api/echo', methods=['POST'])
-def echo():
-    data = request.get_json()
-    return jsonify({
-        'received': data
-    })
-
-
 @app.route('/api/midi', methods=['GET'])
 @app.route('/api/midi/<filename>', methods=['GET'])
 def get_midi(filename='one dir.mid'):

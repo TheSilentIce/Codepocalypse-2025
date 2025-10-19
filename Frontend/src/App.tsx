@@ -3,7 +3,7 @@ import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import type { Note } from "./components/utilities";
 import "./App.css";
-
+import Keys from "./components/keyboard/Keys";
 import Keyboard from "./components/keyboard/Keyboard";
 import NoteRenderer from "./components/Note/NoteRenderer";
 function App() {
@@ -41,6 +41,7 @@ function App() {
   return (
     <div className="h-screen w-screen bg-black">
       <NoteRenderer notes={notes} border={400} />
+      <Keys x={0} y={0} size={100} isPressed={0}></Keys>
     </div>
   );
 }

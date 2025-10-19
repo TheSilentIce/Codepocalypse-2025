@@ -1,11 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import NoteRenderer from "./components/Note/NoteRenderer";
 import type { Note } from "./components/utilities";
-import { convertMidiToNotes } from "./components/utilities";
 import { Keyboard } from "./components/keyboard/KeyboardTwo";
 import type { KeyName } from "./components/keyboard/KeyboardTwo";
 import axios from "axios";
-
+import {
+  convertMidiToNotes,
+  fetchMidiList,
+  fetchMidiData,
+  convertBackendMidiToNotes
+} from "./components/utilities";
 interface KeyStateMap {
   [key: string]: boolean;
 }
@@ -56,6 +60,8 @@ const KEY_COLORS: { [key: string]: string } = {
 
 export default function App() {
   const [notes, setNotes] = useState<Note[]>([]);
+  const [midiFiles, setMidiFiles] = useState<string[]>([]);
+  const [loadingMidis, setLoadingMidis] = useState(false);
   const [keyStates, setKeyStates] = useState<KeyStateMap>(
     createInitialKeyState(),
   );
@@ -131,7 +137,32 @@ axios.post("http://localhost:5000/api/upload", formData)
     },
     [],
   );
+useEffect(() => {
+    const loadMidiList = async () => {
+      setLoadingMidis(true);
+      try {
+        const files = await fetchMidiList();
+        setMidiFiles(files);
+      } catch (error) {
+        console.error("Failed to fetch MIDI list:", error);
+      } finally {
+        setLoadingMidis(false);
+      }
+    };
 
+    loadMidiList();
+  }, []);
+
+  // Handle clicking a MIDI file from the backend list
+  const handleMidiClick = async (filename: string) => {
+    try {
+      const midiData = await fetchMidiData(filename);
+      const midiNotes = convertBackendMidiToNotes(midiData);
+      setNotes(midiNotes);
+    } catch (error) {
+      console.error(`Failed to load MIDI file ${filename}:`, error);
+    }
+  };
   const updateKeyState = useCallback((key: string, isPressed: boolean) => {
     if (TARGET_KEYS.includes(key as KeyName)) {
       setKeyStates((prev) => ({ ...prev, [key]: isPressed }));
@@ -182,7 +213,27 @@ axios.post("http://localhost:5000/api/upload", formData)
           className="px-4 py-2 rounded bg-gray-700 text-white"
         />
       </div>
-
+{/* MIDI file list from backend */}
+        <div className="bg-gray-800 rounded-lg p-4 min-w-[300px]">
+          <h2 className="text-white text-lg font-semibold mb-3">Available MIDI Files</h2>
+          {loadingMidis ? (
+            <p className="text-gray-400">Loading...</p>
+          ) : midiFiles.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              {midiFiles.map((filename) => (
+                <button
+                  key={filename}
+                  onClick={() => handleMidiClick(filename)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors duration-200"
+                >
+                  {filename}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-400">No MIDI files available</p>
+          )}
+        </div>
       {notes.length > 0 && (
         <div ref={containerRef} className="flex-1 flex justify-center">
           <div style={{ width: "540px", height: "100%" }}>

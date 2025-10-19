@@ -102,7 +102,7 @@ export default function NoteRenderer({
     <div className="relative w-full h-full">
       <div
         ref={containerRef}
-        className="w-full h-full relative overflow-hidden bg-black"
+        className="w-full h-full relative overflow-hidden bg-transparent"
         style={{ minHeight: "100%" }}
       >
         {activeNotes.map((note) => (

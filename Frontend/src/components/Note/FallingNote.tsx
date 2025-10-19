@@ -1,84 +1,107 @@
 import { motion, useMotionValue, useMotionValueEvent } from "motion/react";
-import type { Note } from "../utilities";
-import { useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import ParticleBurst from "./ParticleBurst";
+import { type Note } from "../utilities";
 
 interface FallingNoteProps {
   note: Note;
   border: number;
   containerHeight: number;
-  gifUrl: string;
   onFinish?: (id: string | number) => void;
+  triggerAttack?: (midi: number, velocity: number) => void;
+  triggerRelease?: (midi: number) => void;
 }
 
 export default function FallingNote({
   note,
   border,
   containerHeight,
-  gifUrl,
   onFinish,
+  triggerAttack,
+  triggerRelease,
 }: FallingNoteProps) {
   const x = note.x ?? 0;
   const width = note.width ?? 20;
   const duration = note.duration ?? 1;
   const color = note.color ?? "aqua";
+  const midi = note.midi ?? 60;
+  const velocity = note.velocity ?? 0.7;
+
   const noteHeight = 20 + duration * 10;
-  const extraHeight = 50; // extra height for longer visuals
+  const extraHeight = 50;
   const motionHeight = noteHeight + extraHeight;
-
   const y = useMotionValue(-motionHeight);
-  const [showGif, setShowGif] = useState(false);
+  const [isTouchingBorder, setIsTouchingBorder] = useState(false);
+  const hasAttackedRef = useRef(false);
 
-  // Keep GIF visible as long as **bottom of motion div touches the border**
+  // Detect when note enters/exits the border
   useMotionValueEvent(y, "change", (latest) => {
-    const bottom = latest + motionHeight;
-    setShowGif(bottom >= border);
+    const visualBottom = latest + noteHeight;
+    const visualTop = latest;
+    const touching = visualBottom >= border && visualTop <= border;
+    if (touching !== isTouchingBorder) setIsTouchingBorder(touching);
   });
 
-  return (
-    <>
-      {/* Falling note */}
-      <div
-        className="absolute"
-        style={{
-          left: x,
-          width,
-          height: containerHeight,
-          overflow: "visible",
-        }}
-      >
-        <motion.div
-          style={{
-            position: "absolute",
-            top: y,
-            width: "100%",
-            height: motionHeight,
-            backgroundColor: color,
-          }}
-          animate={{ top: containerHeight }}
-          transition={{ duration: duration * 2, ease: "linear" }}
-          onAnimationComplete={() => onFinish?.(note.id)}
-        />
-      </div>
+  // Attack when entering border
+  useEffect(() => {
+    if (isTouchingBorder && !hasAttackedRef.current && triggerAttack) {
+      triggerAttack(midi, velocity);
+      hasAttackedRef.current = true;
+    }
+  }, [isTouchingBorder, triggerAttack, midi, velocity]);
 
-      {/* GIF at border */}
-      {showGif && (
-        <motion.img
-          src={gifUrl}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          style={{
-            position: "absolute",
-            left: x - width / 2,
-            top: border - 50, // adjust to lift GIF above border
-            width: width * 2,
-            height: width * 2,
-            pointerEvents: "none",
-            zIndex: 50,
-          }}
-          alt="note-hit-gif"
-        />
-      )}
-    </>
+  // Release when leaving border
+  useEffect(() => {
+    if (!isTouchingBorder && hasAttackedRef.current && triggerRelease) {
+      triggerRelease(midi);
+      hasAttackedRef.current = false;
+    }
+  }, [isTouchingBorder, triggerRelease, midi]);
+
+  // Release on unmount
+  useEffect(() => {
+    return () => {
+      if (hasAttackedRef.current && triggerRelease) triggerRelease(midi);
+    };
+  }, [triggerRelease, midi]);
+
+  return (
+    <div
+      className="absolute"
+      style={{
+        left: x,
+        width,
+        height: containerHeight,
+        overflow: "visible",
+        pointerEvents: "none",
+      }}
+    >
+      <motion.div
+        style={{
+          position: "absolute",
+          top: y,
+          width: "100%",
+          height: motionHeight,
+          backgroundColor: color,
+          borderRadius: 4,
+          zIndex: 1,
+          boxShadow: isTouchingBorder
+            ? `0 0 30px ${color}, 0 0 60px ${color}, inset 0 0 30px ${color}`
+            : `0 0 20px ${color}, 0 0 40px ${color}, inset 0 0 20px ${color}`,
+          filter: "brightness(1.3) saturate(1.5)",
+          transition: "box-shadow 0.1s ease",
+        }}
+        animate={{ top: containerHeight }}
+        transition={{ duration: duration * 5, ease: "linear" }}
+        onAnimationComplete={() => onFinish?.(note.id)}
+      />
+      <ParticleBurst
+        x={0}
+        yMotion={y}
+        width={width}
+        height={motionHeight}
+        color={color}
+      />
+    </div>
   );
 }

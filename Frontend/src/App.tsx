@@ -1,194 +1,159 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import NoteRenderer from "./components/Note/NoteRenderer";
 import type { Note } from "./components/utilities";
-import {
-  convertMidiToNotes,
-  fetchMidiList,
-  fetchMidiData,
-  convertBackendMidiToNotes
-} from "./components/utilities";
-
+import { convertMidiToNotes } from "./components/utilities";
 import { Keyboard } from "./components/keyboard/KeyboardTwo";
-type KeyName = "a" | "s" | "d" | "f" | "j" | "k" | "l" | ";";
+import type { KeyName } from "./components/keyboard/KeyboardTwo";
 
-// Type for the state object holding the pressed status of all target keys
 interface KeyStateMap {
   [key: string]: boolean;
 }
 
-// Props for the individual PianoKey component
-interface PianoKeyProps {
-  x: number;
-  y: number;
-  size: number;
-  keyName: KeyName | string;
-  isPressed: boolean;
-}
-
-// Props for the Keyboard component
-interface KeyboardProps {
-  keyStates: KeyStateMap;
-}
-// ------------------------
-
-// Define the keys we are interested in tracking
 const TARGET_KEYS: KeyName[] = ["a", "s", "d", "f", "j", "k", "l", ";"];
 
-// --- Configuration for the Piano Key Layout ---
-const KEY_SIZE = 60; // Base width of a key in pixels
-const KEY_Y_OFFSET = 50; // Y offset from the top for all keys
-
-// Map keys to their horizontal position index, skipping one index for the gap
-const KEY_LAYOUT: { [key: string]: number } = {
-  a: 0,
-  s: 1,
-  d: 2,
-  f: 3,
-  j: 5, // Gap at index 4
-  k: 6,
-  l: 7,
-  ";": 8,
-};
-// ---------------------------------------------
-
-// Initial state object where all keys are set to false (not pressed)
-const createInitialKeyState = (): KeyStateMap => {
-  return TARGET_KEYS.reduce((acc, key) => {
+const createInitialKeyState = (): KeyStateMap =>
+  TARGET_KEYS.reduce((acc, key) => {
     acc[key] = false;
     return acc;
-  }, {} as KeyStateMap); // Type assertion needed for reduce initial value
+  }, {} as KeyStateMap);
+
+// Grid column mapping for each MIDI note (1-indexed for CSS Grid)
+// Maps all 128 MIDI notes to the 8 keyboard keys
+const MIDI_TO_GRID_COLUMN: { [key: number]: number } = (() => {
+  const mapping: { [key: number]: number } = {};
+  for (let midi = 0; midi < 128; midi++) {
+    // Cycle through columns 1-9 (skipping 5 for the gap)
+    const keyIndex = midi % 8; // 0-7
+    const columns = [1, 2, 3, 4, 6, 7, 8, 9];
+    mapping[midi] = columns[keyIndex];
+  }
+  return mapping;
+})();
+
+// Map grid column back to key for keyboard animation
+const GRID_COLUMN_TO_KEY: { [key: number]: KeyName } = {
+  1: "a",
+  2: "s",
+  3: "d",
+  4: "f",
+  6: "j",
+  7: "k",
+  8: "l",
+  9: ";",
 };
 
-function App() {
+const KEY_COLORS: { [key: string]: string } = {
+  a: "#FF6B6B",
+  s: "#4ECDC4",
+  d: "#45B7D1",
+  f: "#FFA07A",
+  j: "#98D8C8",
+  k: "#F7DC6F",
+  l: "#BB8FCE",
+  ";": "#85C1E2",
+};
+
+export default function App() {
   const [notes, setNotes] = useState<Note[]>([]);
-  const [midiFiles, setMidiFiles] = useState<string[]>([]);
-  const [loadingMidis, setLoadingMidis] = useState(false);
-
-  // Wrap handleFileUpload to also update state
-  const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const midiNotes = convertMidiToNotes(reader.result as ArrayBuffer);
-      setNotes(midiNotes);
-    };
-    reader.readAsArrayBuffer(file);
-  };
-
-  // Fetch MIDI list from backend on component mount
-  useEffect(() => {
-    const loadMidiList = async () => {
-      setLoadingMidis(true);
-      try {
-        const files = await fetchMidiList();
-        setMidiFiles(files);
-      } catch (error) {
-        console.error("Failed to fetch MIDI list:", error);
-      } finally {
-        setLoadingMidis(false);
-      }
-    };
-
-    loadMidiList();
-  }, []);
-
-  // Handle clicking a MIDI file from the backend list
-  const handleMidiClick = async (filename: string) => {
-    try {
-      const midiData = await fetchMidiData(filename);
-      const midiNotes = convertBackendMidiToNotes(midiData);
-      setNotes(midiNotes);
-    } catch (error) {
-      console.error(`Failed to load MIDI file ${filename}:`, error);
-    }
-  };
-
   const [keyStates, setKeyStates] = useState<KeyStateMap>(
-    createInitialKeyState,
+    createInitialKeyState(),
   );
 
-  // Function to handle key state updates
+  const handleFileChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        let midiNotes = convertMidiToNotes(reader.result as ArrayBuffer, 880);
+
+        // Remap x positions to grid columns and assign colors
+        midiNotes = midiNotes.map((note) => {
+          const gridColumn = MIDI_TO_GRID_COLUMN[note.midi] ?? 1;
+          const key = GRID_COLUMN_TO_KEY[gridColumn];
+          const pixelX = (gridColumn - 1) * 60 + 30;
+          const noteColor = KEY_COLORS[key] || "#FF00FF";
+          return {
+            ...note,
+            x: pixelX,
+            color: noteColor,
+          };
+        });
+
+        setNotes(midiNotes);
+      };
+      reader.readAsArrayBuffer(file);
+    },
+    [],
+  );
+
   const updateKeyState = useCallback((key: string, isPressed: boolean) => {
     if (TARGET_KEYS.includes(key as KeyName)) {
-      setKeyStates((prevStates) => {
-        if (prevStates[key] === isPressed) {
-          return prevStates;
-        }
-        return {
-          ...prevStates,
-          [key]: isPressed,
-        };
-      });
+      setKeyStates((prev) => ({ ...prev, [key]: isPressed }));
     }
   }, []);
 
-  // Event handler for keydown
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      if (!event.repeat) {
-        updateKeyState(event.key.toLowerCase(), true);
-      }
+      if (!event.repeat) updateKeyState(event.key.toLowerCase(), true);
     },
     [updateKeyState],
   );
 
-  // Event handler for keyup
   const handleKeyUp = useCallback(
-    (event: KeyboardEvent) => {
-      updateKeyState(event.key.toLowerCase(), false);
-    },
+    (event: KeyboardEvent) => updateKeyState(event.key.toLowerCase(), false),
     [updateKeyState],
   );
 
-  // useEffect to set up and clean up global event listeners
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
-
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
   }, [handleKeyDown, handleKeyUp]);
+
+  const handleNoteHit = useCallback((midi: number) => {
+    const gridColumn = MIDI_TO_GRID_COLUMN[midi];
+    const key = gridColumn ? GRID_COLUMN_TO_KEY[gridColumn] : undefined;
+    if (key) {
+      setKeyStates((prev) => ({ ...prev, [key]: true }));
+      setTimeout(() => {
+        setKeyStates((prev) => ({ ...prev, [key]: false }));
+      }, 100);
+    } else {
+      console.warn("No mapping for MIDI:", midi);
+    }
+  }, []);
+
   return (
-    <div className="h-screen w-screen bg-black">
-      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex flex-col items-center gap-4">
+    <div className="h-screen w-screen bg-black flex flex-col">
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex gap-2">
         <input
           type="file"
           accept=".mid,.midi"
-          onChange={onFileChange}
+          onChange={handleFileChange}
           className="px-4 py-2 rounded bg-gray-700 text-white"
         />
-
-        {/* MIDI file list from backend */}
-        <div className="bg-gray-800 rounded-lg p-4 min-w-[300px]">
-          <h2 className="text-white text-lg font-semibold mb-3">Available MIDI Files</h2>
-          {loadingMidis ? (
-            <p className="text-gray-400">Loading...</p>
-          ) : midiFiles.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              {midiFiles.map((filename) => (
-                <button
-                  key={filename}
-                  onClick={() => handleMidiClick(filename)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors duration-200"
-                >
-                  {filename}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-400">No MIDI files available</p>
-          )}
-        </div>
       </div>
 
-      {notes.length > 0 && <NoteRenderer notes={notes} border={300} />}
-      <Keyboard keyStates={keyStates} />
+      {notes.length > 0 && (
+        <div className="flex-1 flex justify-center">
+          <div style={{ width: "540px" }}>
+            <NoteRenderer
+              notes={notes}
+              border={725}
+              speedFactor={1}
+              onNoteHit={handleNoteHit}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-center pb-4">
+        <Keyboard keyStates={keyStates} />
+      </div>
     </div>
   );
 }
-
-export default App;

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import NoteRenderer from "./components/Note/NoteRenderer";
 import type { Note } from "./components/utilities";
 import { convertMidiToNotes } from "./components/utilities";
@@ -58,6 +58,20 @@ export default function App() {
   const [keyStates, setKeyStates] = useState<KeyStateMap>(
     createInitialKeyState(),
   );
+  const [containerHeight, setContainerHeight] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Measure the actual container height
+  useEffect(() => {
+    const updateHeight = () => {
+      if (containerRef.current) {
+        setContainerHeight(containerRef.current.clientHeight);
+      }
+    };
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    return () => window.removeEventListener("resize", updateHeight);
+  }, [notes.length]);
 
   const handleFileChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -139,11 +153,11 @@ export default function App() {
       </div>
 
       {notes.length > 0 && (
-        <div className="flex-1 flex justify-center">
-          <div style={{ width: "540px" }}>
+        <div ref={containerRef} className="flex-1 flex justify-center">
+          <div style={{ width: "540px", height: "100%" }}>
             <NoteRenderer
               notes={notes}
-              border={725}
+              border={containerHeight * 0.95}
               speedFactor={1}
               onNoteHit={handleNoteHit}
             />

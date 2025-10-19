@@ -1,5 +1,5 @@
 import { useMotionValueEvent, MotionValue } from "motion/react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, memo } from "react";
 
 interface Particle {
   x: number;
@@ -9,17 +9,59 @@ interface Particle {
   height: number;
   sway: number;
   swayDir: number;
+  opacity: number;
+  width: number;
 }
 
 interface ParticleBurstProps {
   x: number;
   yMotion: MotionValue<number>;
   width: number;
-  height: number; // note height
-  color: string; // <- pass note color
+  height: number;
+  color: string;
 }
 
-export default function ParticleBurst({
+// Memoized particle component
+const ParticleElement = memo(
+  ({
+    p,
+    color,
+    height,
+    noteWidth,
+  }: {
+    p: Particle;
+    color: string;
+    height: number;
+    noteWidth: number;
+  }) => {
+    const progress = p.y / height;
+    const opacity = p.opacity * (1 - progress);
+    const clampedX = Math.max(0, Math.min(noteWidth - 6, p.x + p.sway));
+
+    return (
+      <div
+        key={p.key}
+        style={{
+          position: "absolute",
+          left: clampedX,
+          bottom: 0,
+          width: p.width,
+          height: p.height,
+          background: `linear-gradient(to top, ${color}, ${color}00)`,
+          transform: `translateY(-${p.y}px)`,
+          borderRadius: 2,
+          opacity,
+          boxShadow: `0 0 4px ${color}`,
+          willChange: "transform, opacity",
+        }}
+      />
+    );
+  },
+);
+
+ParticleElement.displayName = "ParticleElement";
+
+function ParticleBurst({
   x,
   yMotion,
   width,
@@ -29,76 +71,129 @@ export default function ParticleBurst({
   const [y, setY] = useState(yMotion.get());
   const [particles, setParticles] = useState<Particle[]>([]);
   const animationRef = useRef<number | null>(null);
+  const lastSpawnTime = useRef<number>(0);
 
-  useMotionValueEvent(yMotion, "change", (latest) => setY(latest));
+  // Pre-generate random values for particle creation
+  const particleFactory = useMemo(() => {
+    const randomValues = new Float32Array(1000);
+    for (let i = 0; i < randomValues.length; i++) {
+      randomValues[i] = Math.random();
+    }
+    let index = 0;
 
-  // Spawn particles gradually from bottom
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const newParticles: Particle[] = Array.from({ length: 3 }).map(() => ({
-        x: Math.random() * width,
-        y: 0, // start at bottom of note
-        speed: 0.5 + Math.random() * 1.2,
-        key: Math.random().toString(36).substr(2, 9),
-        height: 6 + Math.random() * 12,
-        sway: Math.random() * 2,
-        swayDir: Math.random() > 0.5 ? 1 : -1,
-      }));
-      setParticles((prev) => [...prev, ...newParticles].slice(-500));
-    }, 50);
+    return () => {
+      const getRandom = () => {
+        const val = randomValues[index];
+        index = (index + 1) % randomValues.length;
+        return val;
+      };
 
-    return () => clearInterval(interval);
+      return {
+        x: getRandom() * width,
+        y: 0,
+        speed: 0.8 + getRandom() * 1.5,
+        key: `${Date.now()}-${getRandom()}`,
+        height: 8 + getRandom() * 14,
+        sway: 0,
+        swayDir: getRandom() > 0.5 ? 1 : -1,
+        opacity: 0.8 + getRandom() * 0.2,
+        width: 3 + getRandom() * 3,
+      };
+    };
   }, [width]);
 
-  // Animate particles rising up to top of note
+  // Track note position efficiently
+  useMotionValueEvent(yMotion, "change", setY);
+
+  // Spawn particles with RAF instead of setInterval
+  useEffect(() => {
+    const spawnParticles = (timestamp: number) => {
+      if (timestamp - lastSpawnTime.current > 40) {
+        const newParticles: Particle[] = [
+          particleFactory(),
+          particleFactory(),
+          particleFactory(),
+        ];
+
+        setParticles((prev) => {
+          const combined = [...prev, ...newParticles];
+          return combined.length > 500 ? combined.slice(-500) : combined;
+        });
+
+        lastSpawnTime.current = timestamp;
+      }
+
+      animationRef.current = requestAnimationFrame(spawnParticles);
+    };
+
+    animationRef.current = requestAnimationFrame(spawnParticles);
+
+    return () => {
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    };
+  }, [particleFactory]);
+
+  // Animate particles with batched updates
   useEffect(() => {
     const animate = () => {
-      setParticles((prev) =>
-        prev.map((p) => {
-          const newSway = p.sway + 0.1 * p.swayDir;
-          const newSwayDir = Math.abs(newSway) > 3 ? -p.swayDir : p.swayDir;
-          const newY = Math.min(p.y + p.speed, height);
-          return { ...p, y: newY, sway: newSway, swayDir: newSwayDir };
-        }),
-      );
+      setParticles((prev) => {
+        const updated: Particle[] = [];
+
+        for (let i = 0; i < prev.length; i++) {
+          const p = prev[i];
+          const newY = p.y + p.speed;
+
+          if (newY <= height) {
+            const newSway = p.sway + 0.15 * p.swayDir;
+            const absSway = Math.abs(newSway);
+
+            updated.push({
+              ...p,
+              y: newY,
+              sway: newSway,
+              swayDir: absSway > 4 ? -p.swayDir : p.swayDir,
+            });
+          }
+        }
+
+        return updated;
+      });
+
       animationRef.current = requestAnimationFrame(animate);
     };
 
     animationRef.current = requestAnimationFrame(animate);
+
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   }, [height]);
 
+  // Container style - don't memoize because y updates frequently
+  const containerStyle = {
+    position: "absolute" as const,
+    left: x,
+    top: y,
+    width,
+    height,
+    pointerEvents: "none" as const,
+    zIndex: 2,
+    overflow: "visible" as const,
+  };
+
   return (
-    <div
-      style={{
-        position: "absolute",
-        left: x,
-        top: y, // container aligned with note top
-        width,
-        height, // container same height as note
-        pointerEvents: "none",
-        zIndex: 9999,
-        overflow: "visible",
-      }}
-    >
+    <div style={containerStyle}>
       {particles.map((p) => (
-        <div
+        <ParticleElement
           key={p.key}
-          style={{
-            position: "absolute",
-            left: p.x + p.sway,
-            bottom: 0,
-            width: 4 + Math.random() * 2,
-            height: p.height,
-            background: `linear-gradient(to top, ${color}, transparent)`,
-            transform: `translateY(-${p.y}px)`,
-            borderRadius: 2,
-            opacity: Math.max(0, 1 - p.y / height),
-          }}
+          p={p}
+          color={color}
+          height={height}
+          noteWidth={width}
         />
       ))}
     </div>
   );
 }
+
+export default memo(ParticleBurst);

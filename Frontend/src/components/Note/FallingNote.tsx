@@ -1,7 +1,14 @@
 import { motion, useMotionValue, useMotionValueEvent } from "motion/react";
 import { useState } from "react";
-import type { Note } from "../utilities";
 import ParticleBurst from "./ParticleBurst";
+
+interface Note {
+  id: string | number;
+  x?: number;
+  width?: number;
+  duration?: number;
+  color?: string;
+}
 
 interface FallingNoteProps {
   note: Note;
@@ -20,15 +27,12 @@ export default function FallingNote({
   const width = note.width ?? 20;
   const duration = note.duration ?? 1;
   const color = note.color ?? "aqua";
-
   const noteHeight = 20 + duration * 10;
   const extraHeight = 50;
   const motionHeight = noteHeight + extraHeight;
-
-  const y = useMotionValue(-motionHeight); // start above container
+  const y = useMotionValue(-motionHeight);
   const [hitBorder, setHitBorder] = useState(false);
 
-  // Detect border hit
   useMotionValueEvent(y, "change", (latest) => {
     const bottom = latest + motionHeight;
     if (bottom >= border) setHitBorder(true);
@@ -42,6 +46,7 @@ export default function FallingNote({
         width,
         height: containerHeight,
         overflow: "visible",
+        pointerEvents: "none",
       }}
     >
       {/* Note itself */}
@@ -56,16 +61,17 @@ export default function FallingNote({
           zIndex: 1,
         }}
         animate={{ top: containerHeight }}
-        transition={{ duration: duration * 5, ease: "linear" }}
+        transition={{ duration: duration * 1, ease: "linear" }}
         onAnimationComplete={() => onFinish?.(note.id)}
       />
 
-      {/* ParticleBurst aligned inside same motion div */}
+      {/* ParticleBurst aligned with note */}
       <ParticleBurst
-        x={0} // relative to container div
-        yMotion={y} // directly follow note motion
+        x={0}
+        yMotion={y}
         width={width}
         height={motionHeight}
+        color={color}
       />
     </div>
   );

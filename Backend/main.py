@@ -11,10 +11,12 @@ CORS(app)
 # Configuration
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 app.config['UPLOAD_FOLDER'] = 'user_audio_files'
-ALLOWED_EXTENSIONS = {'mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac', 'wma', 'aiff'}
+app.config['MIDI_FOLDER'] = 'midi_files'
+ALLOWED_EXTENSIONS = {'mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac', 'wma', 'aiff', 'mid', 'midi'}
 
-# Create upload directory if it doesn't exist
+# Create upload directories if they don't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['MIDI_FOLDER'], exist_ok=True)
 
 
 def allowed_file(filename):
@@ -139,13 +141,23 @@ def upload_file():
         # Secure the filename
         original_filename = secure_filename(file.filename)
 
-        # Generate unique filename to prevent overwrites
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        name, ext = os.path.splitext(original_filename)
-        unique_filename = f"{name}_{timestamp}{ext}"
+        # Check if it's a MIDI file
+        file_ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else ''
+        is_midi = file_ext in {'mid', 'midi'}
+
+        # For MIDI files, use simple filename without timestamp
+        if is_midi:
+            upload_folder = app.config['MIDI_FOLDER']
+            unique_filename = original_filename
+        else:
+            # For audio files, generate unique filename to prevent overwrites
+            upload_folder = app.config['UPLOAD_FOLDER']
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            name, ext = os.path.splitext(original_filename)
+            unique_filename = f"{name}_{timestamp}{ext}"
 
         # Save the file
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+        filepath = os.path.join(upload_folder, unique_filename)
         file.save(filepath)
 
         return jsonify({

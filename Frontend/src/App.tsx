@@ -5,8 +5,10 @@ import {
   convertMidiToNotes,
   fetchMidiList,
   fetchMidiData,
-  convertBackendMidiToNotes
+  convertBackendMidiToNotes,
+  uploadMidiToBackend
 } from "./components/utilities";
+import { useAudioPlayer } from "./components/audio/AudioPlayer";
 
 import { Keyboard } from "./components/keyboard/KeyboardTwo";
 type KeyName = "a" | "s" | "d" | "f" | "j" | "k" | "l" | ";";
@@ -63,18 +65,37 @@ function App() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [midiFiles, setMidiFiles] = useState<string[]>([]);
   const [loadingMidis, setLoadingMidis] = useState(false);
+  const [showFileList, setShowFileList] = useState(true);
 
-  // Wrap handleFileUpload to also update state
-  const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Initialize audio player at App level
+  const { triggerAttack, triggerRelease, stopAllNotes, initAudio, isInitialized } = useAudioPlayer();
+
+  // Upload MIDI file to backend
+  const onFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const midiNotes = convertMidiToNotes(reader.result as ArrayBuffer);
+    try {
+      // Upload to backend
+      const uploadedFilename = await uploadMidiToBackend(file);
+
+      // Refresh the MIDI file list
+      const files = await fetchMidiList();
+      setMidiFiles(files);
+
+      // Auto-load the uploaded file
+      const midiData = await fetchMidiData(uploadedFilename);
+      const midiNotes = convertBackendMidiToNotes(midiData);
       setNotes(midiNotes);
-    };
-    reader.readAsArrayBuffer(file);
+
+      // Hide file list
+      setShowFileList(false);
+    } catch (error) {
+      console.error('Error uploading MIDI file:', error);
+    }
+
+    // Reset the input so the same file can be uploaded again
+    event.target.value = '';
   };
 
   // Fetch MIDI list from backend on component mount
@@ -100,9 +121,17 @@ function App() {
       const midiData = await fetchMidiData(filename);
       const midiNotes = convertBackendMidiToNotes(midiData);
       setNotes(midiNotes);
+      setShowFileList(false);
     } catch (error) {
       console.error(`Failed to load MIDI file ${filename}:`, error);
     }
+  };
+
+  // Handle back button click
+  const handleBack = () => {
+    stopAllNotes();
+    setNotes([]);
+    setShowFileList(true);
   };
 
   const [keyStates, setKeyStates] = useState<KeyStateMap>(
@@ -154,38 +183,62 @@ function App() {
   }, [handleKeyDown, handleKeyUp]);
   return (
     <div className="h-screen w-screen bg-black">
-      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex flex-col items-center gap-4">
-        <input
-          type="file"
-          accept=".mid,.midi"
-          onChange={onFileChange}
-          className="px-4 py-2 rounded bg-gray-700 text-white"
-        />
+      {/* File list and upload controls - only show when showFileList is true */}
+      {showFileList && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex flex-col items-center gap-4">
+          <input
+            type="file"
+            accept=".mid,.midi"
+            onChange={onFileChange}
+            className="px-4 py-2 rounded bg-gray-700 text-white"
+          />
 
-        {/* MIDI file list from backend */}
-        <div className="bg-gray-800 rounded-lg p-4 min-w-[300px]">
-          <h2 className="text-white text-lg font-semibold mb-3">Available MIDI Files</h2>
-          {loadingMidis ? (
-            <p className="text-gray-400">Loading...</p>
-          ) : midiFiles.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              {midiFiles.map((filename) => (
-                <button
-                  key={filename}
-                  onClick={() => handleMidiClick(filename)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors duration-200"
-                >
-                  {filename}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-400">No MIDI files available</p>
-          )}
+          {/* MIDI file list from backend */}
+          <div className="bg-gray-800 rounded-lg p-4 min-w-[300px]">
+            <h2 className="text-white text-lg font-semibold mb-3">Available MIDI Files</h2>
+            {loadingMidis ? (
+              <p className="text-gray-400">Loading...</p>
+            ) : midiFiles.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {midiFiles.map((filename) => (
+                  <button
+                    key={filename}
+                    onClick={() => handleMidiClick(filename)}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors duration-200"
+                  >
+                    {filename}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-400">No MIDI files available</p>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      {notes.length > 0 && <NoteRenderer notes={notes} border={300} />}
+      {/* Back button - only show when file list is hidden */}
+      {!showFileList && (
+        <div className="absolute top-4 right-4 z-50">
+          <button
+            onClick={handleBack}
+            className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors duration-200 font-semibold"
+          >
+            ← Back to File List
+          </button>
+        </div>
+      )}
+
+      {notes.length > 0 && (
+        <NoteRenderer
+          notes={notes}
+          border={300}
+          triggerAttack={triggerAttack}
+          triggerRelease={triggerRelease}
+          initAudio={initAudio}
+          isInitialized={isInitialized}
+        />
+      )}
       <Keyboard keyStates={keyStates} />
     </div>
   );

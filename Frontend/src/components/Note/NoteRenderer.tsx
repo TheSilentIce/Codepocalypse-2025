@@ -1,22 +1,27 @@
 import { useState, useEffect, useRef } from "react";
 import type { Note } from "../utilities";
 import FallingNote from "./FallingNote";
-import { useAudioPlayer } from "../audio/AudioPlayer";
 
 interface RendererProps {
   notes: Note[];
   border: number;
+  triggerAttack: (midi: number, velocity?: number) => void;
+  triggerRelease: (midi: number) => void;
+  initAudio: () => Promise<void>;
+  isInitialized: boolean;
 }
 
-export default function NoteRenderer({ notes, border }: RendererProps) {
+export default function NoteRenderer({
+  notes,
+  border,
+  triggerAttack,
+  triggerRelease,
+  initAudio,
+  isInitialized
+}: RendererProps) {
   const [activeNotes, setActiveNotes] = useState<Note[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(0);
-
-  // Initialize audio player
-
-  const { triggerAttack, triggerRelease, initAudio, isInitialized } =
-    useAudioPlayer();
 
   // Debug logging
   // console.log("=== NoteRenderer Debug ===");
@@ -87,7 +92,8 @@ export default function NoteRenderer({ notes, border }: RendererProps) {
   // Test button to verify audio works
   const testSound = () => {
     // console.log("Test sound button clicked");
-    playNote(60, 0.5, 0.8);
+    triggerAttack(60, 0.8);
+    setTimeout(() => triggerRelease(60), 500);
   };
 
   return (

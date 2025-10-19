@@ -274,6 +274,35 @@ export async function fetchMidiData(filename: string): Promise<BackendMidiData> 
 }
 
 /**
+ * Uploads a MIDI file to the backend
+ * @param file - MIDI file to upload
+ * @returns Promise<string> - Uploaded filename (without extension)
+ */
+export async function uploadMidiToBackend(file: File): Promise<string> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/api/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    // Remove extension from filename to match the format used by fetchMidiList
+    const filenameWithoutExt = data.filename.replace(/\.(mid|midi)$/i, '');
+    return filenameWithoutExt;
+  } catch (error) {
+    console.error('Error uploading MIDI file:', error);
+    throw error;
+  }
+}
+
+/**
  * Converts backend MIDI data format to frontend Note[] format
  * @param backendData - MIDI data from backend API
  * @param containerWidth - Width of the piano/container for x positioning

@@ -232,11 +232,41 @@ export function generateChordNotes(
 // Backend API URL
 const API_BASE_URL = "http://localhost:5000";
 
+// Types for processing status
+export interface ProcessingStatus {
+  status: 'idle' | 'running' | 'completed' | 'failed';
+  start_time?: string;
+  original_filename?: string;
+  audio_file?: string;
+  message?: string;
+}
+
+export interface ProcessingResult {
+  status: 'completed' | 'failed';
+  midi_filename?: string;
+  completion_time?: string;
+  original_filename?: string;
+  error?: string;
+  message?: string;
+}
+
+export interface MidiListResponse {
+  midi_files: string[];
+  last_update: string | null;
+  count: number;
+}
+
+export interface MidiUpdateCheck {
+  has_updates: boolean;
+  last_update: string | null;
+  current_time: string;
+}
+
 /**
  * Fetches the list of available MIDI files from the backend
- * @returns Promise<string[]> - Array of MIDI filenames (without extensions)
+ * @returns Promise<MidiListResponse> - MIDI list with metadata
  */
-export async function fetchMidiList(): Promise<string[]> {
+export async function fetchMidiList(): Promise<MidiListResponse> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/midis`);
     if (!response.ok) {
@@ -274,11 +304,11 @@ export async function fetchMidiData(filename: string): Promise<BackendMidiData> 
 }
 
 /**
- * Uploads a MIDI file to the backend
- * @param file - MIDI file to upload
- * @returns Promise<string> - Uploaded filename (without extension)
+ * Uploads a file (MIDI or audio) to the backend
+ * @param file - File to upload
+ * @returns Promise<any> - Upload response data
  */
-export async function uploadMidiToBackend(file: File): Promise<string> {
+export async function uploadFileToBackend(file: File): Promise<any> {
   try {
     const formData = new FormData();
     formData.append('file', file);
@@ -293,11 +323,80 @@ export async function uploadMidiToBackend(file: File): Promise<string> {
     }
 
     const data = await response.json();
-    // Remove extension from filename to match the format used by fetchMidiList
-    const filenameWithoutExt = data.filename.replace(/\.(mid|midi)$/i, '');
-    return filenameWithoutExt;
+    return data;
   } catch (error) {
-    console.error('Error uploading MIDI file:', error);
+    console.error('Error uploading file:', error);
+    throw error;
+  }
+}
+
+/**
+ * Uploads a MIDI file to the backend (legacy function for compatibility)
+ * @param file - MIDI file to upload
+ * @returns Promise<string> - Uploaded filename (without extension)
+ */
+export async function uploadMidiToBackend(file: File): Promise<string> {
+  const data = await uploadFileToBackend(file);
+  // Remove extension from filename to match the format used by fetchMidiList
+  const filenameWithoutExt = data.filename.replace(/\.(mid|midi)$/i, '');
+  return filenameWithoutExt;
+}
+
+/**
+ * Checks the current processing status
+ * @returns Promise<ProcessingStatus> - Current processing status
+ */
+export async function getProcessingStatus(): Promise<ProcessingStatus> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/processing/status`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching processing status:", error);
+    throw error;
+  }
+}
+
+/**
+ * Gets the result of the most recent processing job
+ * @returns Promise<ProcessingResult> - Processing result
+ */
+export async function getProcessingResult(): Promise<ProcessingResult> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/processing/result`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching processing result:", error);
+    throw error;
+  }
+}
+
+/**
+ * Checks if the MIDI list has been updated
+ * @param lastCheck - ISO timestamp of last check (optional)
+ * @returns Promise<MidiUpdateCheck> - Update check result
+ */
+export async function checkMidiUpdates(lastCheck?: string): Promise<MidiUpdateCheck> {
+  try {
+    const url = lastCheck 
+      ? `${API_BASE_URL}/api/midis/check-updates?last_check=${encodeURIComponent(lastCheck)}`
+      : `${API_BASE_URL}/api/midis/check-updates`;
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error checking MIDI updates:", error);
     throw error;
   }
 }

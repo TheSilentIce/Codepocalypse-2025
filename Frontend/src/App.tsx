@@ -220,10 +220,6 @@ export default function App() {
 
             <div className="flex justify-center gap-4 text-sm text-gray-400">
               <div className="flex items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/10">
-                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                <span>Real-time gameplay</span>
-              </div>
-              <div className="flex items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/10">
                 <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></span>
                 <span>Visual feedback</span>
               </div>
